@@ -4,6 +4,7 @@ import request from '@/utils/request'
    统一 API 出口：同时提供
    1) 扁平函数（login/listContests/...）
    2) 命名空间对象（authApi/contestApi/challengeApi/awdApi/...）
+   后端契约：POST /api/ctf/submit  body = { contestId, questionId, content, submitType }
    ===================================================================== */
 
 // ===== 认证 =====
@@ -41,7 +42,33 @@ export const contestApi = {
 export const listChallenges = (contestId) => request.get(`/ctf/contests/${contestId}/challenges`)
 export const listPlayChallenges = (contestId) => request.get(`/ctf/contests/${contestId}/challenges/play`)
 export const getChallenge = (id) => request.get(`/ctf/challenges/${id}`)
-export const submitFlag = (data) => request.post('/ctf/submit', data)
+
+/**
+ * 提交 Flag/答案（统一入口）
+ * 后端 SubmitRequest = { contestId, questionId, content, submitType, startTs, deviceId }
+ *
+ * 兼容两种调用方式：
+ *   1) submitFlag({ contestId, questionId|challengeId, content|flag, submitType? })
+ *   2) submitFlag(contestId, questionId, flag)
+ */
+export const submitFlag = (payloadOrContestId, questionId, flag) => {
+  let body
+  if (typeof payloadOrContestId === 'object' && payloadOrContestId !== null) {
+    const p = payloadOrContestId
+    body = {
+      contestId: p.contestId,
+      questionId: p.questionId ?? p.challengeId,
+      content: p.content ?? p.flag,
+      submitType: p.submitType || 'FLAG',
+      startTs: p.startTs,
+      deviceId: p.deviceId
+    }
+  } else {
+    body = { contestId: payloadOrContestId, questionId, content: flag, submitType: 'FLAG' }
+  }
+  return request.post('/ctf/submit', body)
+}
+
 export const getScoreboard = (contestId) => request.get(`/ctf/contests/${contestId}/scoreboard`)
 export const getSolveTrend = (contestId) => request.get(`/ctf/contests/${contestId}/trend`)
 export const createChallenge = (data) => request.post('/ctf/challenges', data)
@@ -49,7 +76,6 @@ export const updateChallenge = (id, data) => request.put(`/ctf/challenges/${id}`
 export const removeChallenge = (id) => request.delete(`/ctf/challenges/${id}`)
 
 export const challengeApi = {
-  // 兼容两种调用：list(contestId) 或 list({ contestId })
   list: (arg) => listChallenges(typeof arg === 'object' && arg !== null ? arg.contestId : arg),
   playList: listPlayChallenges,
   detail: getChallenge,
@@ -64,6 +90,8 @@ export const rankApi = {
 }
 
 // ===== AWD =====
+// 说明：/awd/contests/{contestId}/* 由 AwdCompatController 提供只读聚合视图（大屏/看板用）
+//       写操作与裁判控制走 /awd/rounds、/awd/targets、/awd/score 权威端点（见 api/awd.js）
 export const getAwdOverview = (contestId) => request.get(`/awd/contests/${contestId}/overview`)
 export const listAwdTeams = (contestId) => request.get(`/awd/contests/${contestId}/teams`)
 export const getAwdScoreboard = (contestId) => request.get(`/awd/contests/${contestId}/scoreboard`)
@@ -87,7 +115,7 @@ export const teamApi = {
   list: (params) => request.get('/teams', { params }),
   detail: (id) => request.get(`/teams/${id}`),
   remove: (id) => request.delete(`/teams/${id}`),
-  // 赛事维度
+  // 赛事维度（ContestTeamController：/api/contests/{contestId}/teams）
   listByContest: (contestId, params) => request.get(`/contests/${contestId}/teams`, { params }),
   review: (contestId, teamId, status) => request.post(`/contests/${contestId}/teams/${teamId}/review`, null, { params: { status } }),
   members: (contestId, teamId) => request.get(`/contests/${contestId}/teams/${teamId}/members`)
@@ -113,7 +141,7 @@ export const statsApi = {
   overview: (params) => request.get('/stats/overview', { params })
 }
 
-// ===== 态势感知 =====
+// ===== 态势感知（后端两种形态：path 变量 + query，这里统一用 query 形态）=====
 export const getSituationOverview = (params) => request.get('/situation/overview', { params })
 export const getSituationRanking = (params) => request.get('/situation/ranking', { params })
 export const getTeamProfile = (teamId) => request.get(`/situation/teams/${teamId}`)
@@ -134,13 +162,15 @@ Object.assign(authApi, {
   wechatQrcode, wechatStatus, wechatCallback, wechatExchange
 })
 
-// ===== 选手端靶机（点击启动容器，返回随机端口地址）=====
+// ===== 选手端 AWD 靶机（AwdTargetController：/awd/targets/mine*）=====
 export const listMyTargets = (contestId) => request.get('/awd/targets/mine', { params: { contestId } })
-export const startMyTarget = (contestId, questionId) =>
-  request.post('/awd/targets/mine/start', null, { params: { contestId, ...(questionId ? { questionId } : {}) } })
+export const startMyTarget = (contestId, questionId, roundNo) =>
+  request.post('/awd/targets/mine/start', null, {
+    params: { contestId, ...(questionId ? { questionId } : {}), ...(roundNo ? { roundNo } : {}) }
+  })
 
 
-// ===== CTF 动态靶机（t7：容器题启动/重置/销毁；附件题不调用）=====
+// ===== CTF 动态靶机（CtfTargetController：/ctf/contests/{cid}/targets/*）=====
 export const getTargetStatus = (contestId, questionId) =>
   request.get(`/ctf/contests/${contestId}/targets`, { params: { questionId } })
 export const startTarget = (contestId, questionId) =>
@@ -163,7 +193,7 @@ export const reviewWriteups = (params) => request.get('/writeups/review', { para
 export const reviewWriteup = (id, status, remark) =>
   request.post(`/writeups/${id}/review`, null, { params: { status, ...(remark ? { remark } : {}) } })
 
-// ===== CFS 场景化渗透赛（分层拓扑 + 递进得分）=====
+// ===== CFS 场景化渗透赛 =====
 export const getCfsTopology = (contestId) => request.get(`/cfs/contests/${contestId}/topology`)
 export const submitCfsFlag = (data) => request.post('/cfs/submissions', data)
 export const getCfsInstance = (contestId) => request.get(`/cfs/contests/${contestId}/instance`)
@@ -182,7 +212,7 @@ export const cfsApi = {
   start: startCfsContest
 }
 
-// ===== AWDP 防御修补（独立接口，不与攻击 flag 提交混用）=====
+// ===== AWDP 防御修补 =====
 export const submitDefensePatch = (formData, onUploadProgress) =>
   request.post('/awd/defense/submit', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -203,24 +233,22 @@ export const defenseApi = {
   markCompromised: markDefenseCompromised
 }
 
-// ===== 场景实操赛（SCENARIO）多机靶场与任务树 =====
+// ===== 场景实操赛（SCENARIO）=====
+// 后端 ScenarioController 基路径是 /api/scenario（不是 /api/ctf/scenarios）
 export const getScenarioArena = (contestId) =>
   request.get(`/scenario/contests/${contestId}/scenarios`)
 export const submitScenarioFlag = (data) => request.post('/scenario/submissions', data)
 
-// 环境编排（多机：外网 Web + 内网 DB + 跳板机）
 export const provisionScenarioEnv = (data) => request.post('/scenario/env/provision', data)
 export const destroyScenarioEnv = (params) => request.post('/scenario/env/destroy', null, { params })
 export const getScenarioEnv = (params) => request.get('/scenario/env', { params })
 export const listScenarioEnvs = (params) => request.get('/scenario/env/list', { params })
 
-// 环境预检（开赛前一键体检）
 export const precheckScenarioContest = (contestId) =>
   request.get('/scenario/env/precheck', { params: { contestId } })
 export const precheckScenarioOne = (scenarioId, contestId) =>
   request.get(`/scenario/env/precheck/${scenarioId}`, { params: { contestId } })
 
-// 任务依赖树（拓扑序 + 环检测 + 锁定态）
 export const getScenarioDependencyTree = (params) =>
   request.get('/scenario/env/dependency/tree', { params })
 export const checkScenarioDependency = (params) =>
