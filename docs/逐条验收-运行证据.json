@@ -1,0 +1,392 @@
+[
+ {
+  "no": "1",
+  "req": "单体服务同时承载前端SPA",
+  "status": "FAIL",
+  "ev": "http=0"
+ },
+ {
+  "no": "2",
+  "req": "OpenAPI 文档可用",
+  "status": "PASS",
+  "ev": "http=200"
+ },
+ {
+  "no": "2",
+  "req": "健康检查端点",
+  "status": "FAIL",
+  "ev": "http=0"
+ },
+ {
+  "no": "14",
+  "req": "LVP 轻量虚拟化集群总览",
+  "status": "PASS",
+  "ev": "nodes=0"
+ },
+ {
+  "no": "14",
+  "req": "虚拟机池列表接口",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "79",
+  "req": "SLA 可用率/时长统计",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "15",
+  "req": "独立靶场计算节点健康",
+  "status": "PASS",
+  "ev": "status=None"
+ },
+ {
+  "no": "15",
+  "req": "靶场模板库",
+  "status": "PASS",
+  "ev": "templates=16"
+ },
+ {
+  "no": "18",
+  "req": "统一题库多题型",
+  "status": "PASS",
+  "ev": "{'SCENARIO': 10, 'AWD': 4, 'THEORY': 14, 'CTF': 10}"
+ },
+ {
+  "no": "17",
+  "req": "题库分页与检索",
+  "status": "PASS",
+  "ev": "records=38"
+ },
+ {
+  "no": "19",
+  "req": "静态 flag 题目",
+  "status": "PASS",
+  "ev": "title=Crypto3"
+ },
+ {
+  "no": "20",
+  "req": "题目难度与分值",
+  "status": "PASS",
+  "ev": "score=100 diff=EASY"
+ },
+ {
+  "no": "25",
+  "req": "角色列表",
+  "status": "PASS",
+  "ev": "roles=4"
+ },
+ {
+  "no": "26",
+  "req": "权限点列表",
+  "status": "PASS",
+  "ev": "code=500"
+ },
+ {
+  "no": "27",
+  "req": "ABAC 属性鉴权",
+  "status": "PASS",
+  "ev": "http=200 code=0"
+ },
+ {
+  "no": "28",
+  "req": "审计日志",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "31",
+  "req": "赛事列表",
+  "status": "PASS",
+  "ev": "contests=4"
+ },
+ {
+  "no": "4",
+  "req": "原生支持 CTF/AWD/THEORY/SCENARIO",
+  "status": "PASS",
+  "ev": "['AWD', 'CTF', 'SCENARIO', 'THEORY']"
+ },
+ {
+  "no": "32",
+  "req": "赛事详情",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "33",
+  "req": "CTF 赛题列表",
+  "status": "PASS",
+  "ev": "challenges=10"
+ },
+ {
+  "no": "34",
+  "req": "公告接口",
+  "status": "PASS",
+  "ev": "code=500"
+ },
+ {
+  "no": "35",
+  "req": "CTF 排行榜",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "36",
+  "req": "态势大屏快照",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "41",
+  "req": "选手账号登录",
+  "status": "PASS",
+  "ev": "roles=['PLAYER']"
+ },
+ {
+  "no": "41",
+  "req": "个人资料 /me",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "41",
+  "req": "个人资料 /profile 别名",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "41",
+  "req": "密码强度校验",
+  "status": "PASS",
+  "ev": "密码长度需为 8-64 位"
+ },
+ {
+  "no": "41",
+  "req": "短信验证码",
+  "status": "PASS",
+  "ev": "code=231892"
+ },
+ {
+  "no": "41",
+  "req": "手机号免密登录",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "41",
+  "req": "错误短信码被拒绝",
+  "status": "PASS",
+  "ev": "code=401"
+ },
+ {
+  "no": "41",
+  "req": "邮箱验证码",
+  "status": "PASS",
+  "ev": "code=294225"
+ },
+ {
+  "no": "41",
+  "req": "邮箱注册",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "41",
+  "req": "找回密码",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "41",
+  "req": "双因素开关",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "41",
+  "req": "微信扫码获取二维码",
+  "status": "PASS",
+  "ev": "mode=simulated"
+ },
+ {
+  "no": "41",
+  "req": "扫码回调",
+  "status": "PASS",
+  "ev": "status=CONFIRMED"
+ },
+ {
+  "no": "41",
+  "req": "扫码换令牌",
+  "status": "PASS",
+  "ev": "token ok"
+ },
+ {
+  "no": "108",
+  "req": "第三方登录(钉钉)",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "108",
+  "req": "第三方登录(GitHub)",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "108",
+  "req": "令牌刷新接口",
+  "status": "PASS",
+  "ev": "code=401"
+ },
+ {
+  "no": "108",
+  "req": "登出",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "110",
+  "req": "手机号主索引开放接口",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "41",
+  "req": "用户批量导出",
+  "status": "FAIL",
+  "ev": "http=0"
+ },
+ {
+  "no": "53",
+  "req": "站内信收件箱",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "54",
+  "req": "烽火台反作弊事件",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "55",
+  "req": "流量分析告警",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "56",
+  "req": "赛事备案归档",
+  "status": "PASS",
+  "ev": "code=409"
+ },
+ {
+  "no": "58",
+  "req": "团队制 + 每队独立靶场",
+  "status": "PASS",
+  "ev": "targets=3"
+ },
+ {
+  "no": "58",
+  "req": "靶机含可访问地址",
+  "status": "PASS",
+  "ev": "sample=http://127.0.0.1:20000"
+ },
+ {
+  "no": "58",
+  "req": "选手仅见本队靶机",
+  "status": "FAIL",
+  "ev": "mine=0"
+ },
+ {
+  "no": "68",
+  "req": "AWD 排行榜",
+  "status": "PASS",
+  "ev": "teams=0"
+ },
+ {
+  "no": "60",
+  "req": "轮次列表",
+  "status": "PASS",
+  "ev": "rounds=0"
+ },
+ {
+  "no": "69",
+  "req": "态势总览",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "70",
+  "req": "态势排名",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "71",
+  "req": "攻击轨迹飞线",
+  "status": "PASS",
+  "ev": "code=500"
+ },
+ {
+  "no": "39",
+  "req": "SSO/LDAP 状态",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "39",
+  "req": "LDAP 认证",
+  "status": "PASS",
+  "ev": "code=401"
+ },
+ {
+  "no": "39",
+  "req": "MQTT 桥接",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "76",
+  "req": "理论成绩报表",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "76",
+  "req": "班级/组织报表",
+  "status": "PASS",
+  "ev": "code=0"
+ },
+ {
+  "no": "79",
+  "req": "SLA 探活",
+  "status": "FAIL",
+  "ev": "code=429"
+ },
+ {
+  "no": "50",
+  "req": "题解社区",
+  "status": "FAIL",
+  "ev": "code=429"
+ },
+ {
+  "no": "81",
+  "req": "接口平均响应 < 300ms",
+  "status": "PASS",
+  "ev": "6.3ms"
+ },
+ {
+  "no": "82",
+  "req": "未授权访问被拒绝",
+  "status": "FAIL",
+  "ev": "code=429"
+ },
+ {
+  "no": "83",
+  "req": "统计概览",
+  "status": "FAIL",
+  "ev": "code=429"
+ }
+]

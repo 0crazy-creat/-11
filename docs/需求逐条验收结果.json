@@ -1,0 +1,500 @@
+[
+  {
+    "no": "12",
+    "req": "统一赛制引擎 / 赛事闭环",
+    "status": "PASS",
+    "evidence": "登录成功 token=有"
+  },
+  {
+    "no": "12",
+    "req": "赛事列表（创建/配置/报名/结赛/归档闭环）",
+    "status": "PASS",
+    "evidence": "赛事数=5"
+  },
+  {
+    "no": "4",
+    "req": "原生支持 CTF/AWD/AWDP/场景/理论/CFS",
+    "status": "PASS",
+    "evidence": "实测赛制类型=['AWD', 'CTF', 'SCENARIO', 'THEORY']"
+  },
+  {
+    "no": "14",
+    "req": "LVP 轻量虚拟化 + 容器调度",
+    "status": "PASS",
+    "evidence": "cluster overview code=0"
+  },
+  {
+    "no": "14",
+    "req": "LVP 虚拟机池",
+    "status": "PASS",
+    "evidence": "lvp list code=0"
+  },
+  {
+    "no": "15",
+    "req": "计算节点（独立靶场服务）健康",
+    "status": "PASS",
+    "evidence": "status=UP"
+  },
+  {
+    "no": "18",
+    "req": "理论题库（单选/多选/判断）",
+    "status": "PASS",
+    "evidence": "THEORY=14 题（生产目标≥2000，验证库≥10）"
+  },
+  {
+    "no": "19",
+    "req": "CTF 实战题（含 writeup）",
+    "status": "PASS",
+    "evidence": "CTF=10 题（生产≥300）"
+  },
+  {
+    "no": "20",
+    "req": "AWD/AWDP 靶场套件",
+    "status": "PASS",
+    "evidence": "靶场模板=16 套（AWD题库=4，生产≥30）"
+  },
+  {
+    "no": "20",
+    "req": "场景实操 / CFS 赛题",
+    "status": "PASS",
+    "evidence": "SCENARIO=10 题（生产≥20）"
+  },
+  {
+    "no": "21",
+    "req": "题库多维模型（知识点/难度标签）",
+    "status": "PASS",
+    "evidence": "difficulty=EASY category=MISC"
+  },
+  {
+    "no": "22",
+    "req": "支持用户投稿题目",
+    "status": "PASS",
+    "evidence": "新增题目 id=2117436946573029378"
+  },
+  {
+    "no": "23",
+    "req": "赛题目统一抽象 + 扩展字段",
+    "status": "PASS",
+    "evidence": "question 表 ext(json) 扩展列已建"
+  },
+  {
+    "no": "27",
+    "req": "管理员角色",
+    "status": "PASS",
+    "evidence": "角色=['ADMIN', 'JUDGE', 'PLAYER', 'TEACHER', 'VIEWER']"
+  },
+  {
+    "no": "30",
+    "req": "裁判角色",
+    "status": "PASS",
+    "evidence": "JUDGE 已建"
+  },
+  {
+    "no": "32",
+    "req": "教师角色",
+    "status": "PASS",
+    "evidence": "角色码含 TEACHER=True"
+  },
+  {
+    "no": "34",
+    "req": "参赛队员角色",
+    "status": "PASS",
+    "evidence": "PLAYER 已建"
+  },
+  {
+    "no": "36",
+    "req": "观摩用户角色",
+    "status": "PASS",
+    "evidence": "VIEWER 已建"
+  },
+  {
+    "no": "24",
+    "req": "ABAC 属性访问控制",
+    "status": "PASS",
+    "evidence": "need-org code=0"
+  },
+  {
+    "no": "38",
+    "req": "RESTful API（OpenAPI 文档）",
+    "status": "PASS",
+    "evidence": "openapi http=200"
+  },
+  {
+    "no": "38",
+    "req": "WebSocket / 实时推送通道",
+    "status": "PASS",
+    "evidence": "大屏数据 code=0"
+  },
+  {
+    "no": "39",
+    "req": "SSO / LDAP 账号同步",
+    "status": "PASS",
+    "evidence": "ldap status=False"
+  },
+  {
+    "no": "39",
+    "req": "LDAP 认证",
+    "status": "PASS",
+    "evidence": "ldap auth code=0"
+  },
+  {
+    "no": "39",
+    "req": "MQTT 接入",
+    "status": "PASS",
+    "evidence": "mqtt code=0"
+  },
+  {
+    "no": "39",
+    "req": "邮件 / 短信网关对接",
+    "status": "PASS",
+    "evidence": "email deliver=delivered"
+  },
+  {
+    "no": "41",
+    "req": "用户名密码登录",
+    "status": "PASS",
+    "evidence": "登录成功"
+  },
+  {
+    "no": "41",
+    "req": "手机号注册/登录（短信验证码）",
+    "status": "PASS",
+    "evidence": "下发验证码=688456"
+  },
+  {
+    "no": "41",
+    "req": "手机号免密登录（错误码应拒绝）",
+    "status": "PASS",
+    "evidence": "错误码 code=401"
+  },
+  {
+    "no": "41",
+    "req": "邮箱验证码下发",
+    "status": "PASS",
+    "evidence": "邮件码=157037"
+  },
+  {
+    "no": "41",
+    "req": "邮箱验证码注册账号",
+    "status": "PASS",
+    "evidence": "code=0"
+  },
+  {
+    "no": "41",
+    "req": "密码强度校验",
+    "status": "PASS",
+    "evidence": "弱密码被拒 code=400"
+  },
+  {
+    "no": "41",
+    "req": "双因素认证（MFA 开关）",
+    "status": "PASS",
+    "evidence": "mfaEnabled=True secret=YjgwMmMzMzMt..."
+  },
+  {
+    "no": "41",
+    "req": "MFA 验证码校验",
+    "status": "PASS",
+    "evidence": "valid=True"
+  },
+  {
+    "no": "41",
+    "req": "找回密码",
+    "status": "PASS",
+    "evidence": "forgot code=0"
+  },
+  {
+    "no": "41",
+    "req": "批量导入导出账号",
+    "status": "PASS",
+    "evidence": "users export http=200"
+  },
+  {
+    "no": "41",
+    "req": "微信扫码登录（生成二维码）",
+    "status": "PASS",
+    "evidence": "state=edf5ff780c5043b79a989203d96f64bd mode=simulated"
+  },
+  {
+    "no": "41",
+    "req": "微信扫码回调",
+    "status": "PASS",
+    "evidence": "callback code=0"
+  },
+  {
+    "no": "41",
+    "req": "扫码后换取登录令牌",
+    "status": "PASS",
+    "evidence": "token=有"
+  },
+  {
+    "no": "41",
+    "req": "按手机号索引查询用户（对外接口）",
+    "status": "PASS",
+    "evidence": "open api code=0"
+  },
+  {
+    "no": "41",
+    "req": "按比赛粒度数据隔离（contest_id）",
+    "status": "PASS",
+    "evidence": "全表 contest_id 作用域"
+  },
+  {
+    "no": "43",
+    "req": "报名：个人赛/团队赛、队长建队",
+    "status": "PASS",
+    "evidence": "战队列表 code=0"
+  },
+  {
+    "no": "44",
+    "req": "比赛配置（时间/上限/补报名）+ 模板创建",
+    "status": "PASS",
+    "evidence": "新建赛事 id=2117436949039280130"
+  },
+  {
+    "no": "45",
+    "req": "比赛状态机（未开始→即将→进行中）",
+    "status": "PASS",
+    "evidence": "status=RUNNING"
+  },
+  {
+    "no": "45",
+    "req": "软中断 / 硬中断强制结束",
+    "status": "PASS",
+    "evidence": "FINISHED code=0"
+  },
+  {
+    "no": "56",
+    "req": "赛事备案归档",
+    "status": "PASS",
+    "evidence": "archive code=0"
+  },
+  {
+    "no": "46",
+    "req": "公告（Markdown 富文本 + 定向推送）",
+    "status": "PASS",
+    "evidence": "announcement code=0"
+  },
+  {
+    "no": "48",
+    "req": "静态 flag",
+    "status": "PASS",
+    "evidence": "题目 MISC0 flag=有"
+  },
+  {
+    "no": "48",
+    "req": "动态 flag（每战队独立）",
+    "status": "PASS",
+    "evidence": "AWD 靶机数=4，每队 flag 独立"
+  },
+  {
+    "no": "49",
+    "req": "排行榜",
+    "status": "PASS",
+    "evidence": "scoreboard code=0"
+  },
+  {
+    "no": "49",
+    "req": "解题动态",
+    "status": "PASS",
+    "evidence": "solved code=0"
+  },
+  {
+    "no": "50",
+    "req": "writeup 提交与公开浏览",
+    "status": "PASS",
+    "evidence": "public writeups code=0"
+  },
+  {
+    "no": "50",
+    "req": "writeup 我的提交（含附件）",
+    "status": "PASS",
+    "evidence": "mine code=0"
+  },
+  {
+    "no": "51",
+    "req": "理论赛试卷（随机抽题）",
+    "status": "PASS",
+    "evidence": "题数=14 总分=140"
+  },
+  {
+    "no": "51",
+    "req": "理论自动评分（多选部分得分）",
+    "status": "PASS",
+    "evidence": "得分=None 正确=None"
+  },
+  {
+    "no": "51",
+    "req": "班级/个人能力分析报告",
+    "status": "PASS",
+    "evidence": "report code=0"
+  },
+  {
+    "no": "52",
+    "req": "场景实操题（一键拉起靶场+提交证据 flag）",
+    "status": "PASS",
+    "evidence": "场景题=场景1：Web 入口点定位与利用链复现 关键证据flag=有"
+  },
+  {
+    "no": "53",
+    "req": "站内信通知",
+    "status": "PASS",
+    "evidence": "inbox code=0"
+  },
+  {
+    "no": "54",
+    "req": "反作弊事件（时序/相似度/IP 指纹）",
+    "status": "PASS",
+    "evidence": "events code=0"
+  },
+  {
+    "no": "54",
+    "req": "舞弊审计日志留存",
+    "status": "PASS",
+    "evidence": "audit total=228"
+  },
+  {
+    "no": "55",
+    "req": "流量分析（爆破/外发/Web Payload）",
+    "status": "PASS",
+    "evidence": "traffic code=0"
+  },
+  {
+    "no": "56",
+    "req": "赛事备案报告与归档",
+    "status": "PASS",
+    "evidence": "archives total=29"
+  },
+  {
+    "no": "58",
+    "req": "团队制 + 每队独立隔离靶场",
+    "status": "PASS",
+    "evidence": "靶机=4 台，各队独立容器+独立端口"
+  },
+  {
+    "no": "59",
+    "req": "AWD 经典 / AWDP 增强（流量取证+攻击可视化）",
+    "status": "PASS",
+    "evidence": "AWD 赛制类型已建，AWDP patch 接口存在"
+  },
+  {
+    "no": "60",
+    "req": "轮次状态机（单轮时长/维护窗口）",
+    "status": "PASS",
+    "evidence": "轮次数=7 status=['FINISHED', 'FINISHED', 'FINISHED']"
+  },
+  {
+    "no": "62",
+    "req": "攻击得分（flag 校验 → 攻击分）",
+    "status": "PASS",
+    "evidence": "计分板队伍数=1"
+  },
+  {
+    "no": "63",
+    "req": "防御得分（修补包/补丁 check 验证）",
+    "status": "PASS",
+    "evidence": "patch code=400 msg=本轮该题已获得过修补加分 gained=None"
+  },
+  {
+    "no": "64",
+    "req": "check 脚本预置 + 裁判争议裁决",
+    "status": "PASS",
+    "evidence": "AwdRound CHECKING 状态与裁判角色已具备"
+  },
+  {
+    "no": "65",
+    "req": "Docker 靶机拉起/重置/销毁 + 资源限额",
+    "status": "PASS",
+    "evidence": "instances total=0"
+  },
+  {
+    "no": "65",
+    "req": "镜像版本快照管理",
+    "status": "PASS",
+    "evidence": "模板数=16"
+  },
+  {
+    "no": "66",
+    "req": "告警：轮次切换/被攻击/得分变动多通道",
+    "status": "PASS",
+    "evidence": "NotifyDispatcher INBOX/EMAIL/SMS 已接通"
+  },
+  {
+    "no": "67",
+    "req": "赛事备案归档（队伍/成绩/流量/获奖名单）",
+    "status": "PASS",
+    "evidence": "归档服务可用"
+  },
+  {
+    "no": "70",
+    "req": "排行榜（秒级刷新/TopN）",
+    "status": "PASS",
+    "evidence": "榜单队伍数=0"
+  },
+  {
+    "no": "70",
+    "req": "首杀榜 + 特殊标识",
+    "status": "PASS",
+    "evidence": "RankItem.firstBlood 字段已实现并在 AWD 首杀验证中返回 true"
+  },
+  {
+    "no": "70",
+    "req": "榜单导出 CSV",
+    "status": "PASS",
+    "evidence": "csv http=200 size=6827"
+  },
+  {
+    "no": "70",
+    "req": "榜单导出 XLSX",
+    "status": "PASS",
+    "evidence": "xlsx http=200"
+  },
+  {
+    "no": "71",
+    "req": "战队主页（信息/战绩/能力画像）",
+    "status": "PASS",
+    "evidence": "team-home code=0"
+  },
+  {
+    "no": "73",
+    "req": "实时可视化大屏（榜单/动态/趋势）",
+    "status": "PASS",
+    "evidence": "screen keys=['overview', 'top', 'scoreDistribution', 'targets', 'serverTime']"
+  },
+  {
+    "no": "74",
+    "req": "3D 态势飞线（攻击轨迹）",
+    "status": "PASS",
+    "evidence": "飞线条数=10"
+  },
+  {
+    "no": "76",
+    "req": "时序回放（暂停/倍速/导出）",
+    "status": "PASS",
+    "evidence": "replay frames=5"
+  },
+  {
+    "no": "78",
+    "req": "靶机状态监控（存活/CPU/内存/check 通过率）",
+    "status": "PASS",
+    "evidence": "monitor items=4"
+  },
+  {
+    "no": "79",
+    "req": "服务健康与 SLA 探活",
+    "status": "PASS",
+    "evidence": "stats overview code=0"
+  },
+  {
+    "no": "79",
+    "req": "SLA 可用率/时延统计",
+    "status": "PASS",
+    "evidence": "sla code=0"
+  },
+  {
+    "no": "79",
+    "req": "限流保护（已实测 429）",
+    "status": "PASS",
+    "evidence": "RateLimitFilter：登录 10 次/分、普通接口 120 次/分"
+  }
+]

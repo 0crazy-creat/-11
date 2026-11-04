@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <parent><groupId>com.csp</groupId><artifactId>csp-parent</artifactId><version>1.0.0</version></parent>
+    <artifactId>csp-toolbox</artifactId>
+    <name>csp-toolbox</name>
+    <description>题库数据工具与离线脚本（不打包进主应用）</description>
+    <dependencies>
+        <dependency><groupId>com.csp</groupId><artifactId>csp-infra</artifactId></dependency>
+    </dependencies>
+</project>

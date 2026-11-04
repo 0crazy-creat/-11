@@ -1,0 +1,240 @@
+/* =====================================================================
+   网络安全竞赛平台 · 全局视觉规范
+   来源：竞赛平台视觉规范.docx（唯一视觉权威）
+   原则：白底浅色为主，主色仅用于关键操作与状态标识，控制占比
+   ===================================================================== */
+
+:root {
+  /* ---------- 一、色彩规范 ---------- */
+  /* 1. 主色 */
+  --csp-primary: #295FFF;
+  --csp-primary-dark: #1b48e8;      /* hover / 激活 / 重点按钮 / 选中标签 */
+  --csp-primary-light: #e8eeff;     /* 背景 / 标签底色 / 提示块 */
+
+  /* 2. 辅助色：严格用于状态反馈，不做装饰 */
+  --csp-success: #00b42a;           /* 提交成功、通过状态 */
+  --csp-warning: #ff7d00;           /* 待提交、警告提示 */
+  --csp-danger: #f53f3f;            /* 答题错误、失败状态 */
+  --csp-info: #295FFF;              /* 复用主色 */
+  --csp-disabled: #c9cdd4;          /* 禁用态、不可点击 */
+
+  /* 3. 中性色：文字 / 分割线 / 背景 */
+  --csp-title: #1d2129;             /* 正文标题（一级标题） */
+  --csp-text: #4e5969;              /* 常规正文 */
+  --csp-text-secondary: #86909c;    /* 次要说明、备注、辅助文字 */
+  --csp-placeholder: #c9cdd4;       /* 占位文字 */
+  --csp-bg-page: #ffffff;           /* 页面底色 */
+  --csp-bg-card: #f7f8fa;           /* 卡片 / 面板底色 */
+  --csp-border: #e5e6eb;            /* 分割线、边框 */
+
+  /* ---------- 二、字体规范 ---------- */
+  --csp-font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --csp-font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Courier New", monospace;
+
+  /* 字号 / 行高（PC 端基准，px） */
+  --csp-fs-page-title: 24px;  --csp-lh-page-title: 32px;  /* 竞赛首页标题、大赛名称 */
+  --csp-fs-h1: 20px;          --csp-lh-h1: 28px;          /* 板块标题、题目大类标题 */
+  --csp-fs-h2: 18px;          --csp-lh-h2: 26px;          /* 卡片标题、题目名称、弹窗标题 */
+  --csp-fs-h3: 16px;          --csp-lh-h3: 24px;          /* 导航、tab 标签、子模块标题 */
+  --csp-fs-body: 14px;        --csp-lh-body: 22px;        /* 题目描述、页面说明、表格内容 */
+  --csp-fs-aux: 13px;         --csp-lh-aux: 20px;         /* 时间、分值、提交记录、备注 */
+  --csp-fs-tip: 12px;         --csp-lh-tip: 18px;         /* 表单提示、页脚版权、版本信息 */
+  --csp-fs-code: 14px;        --csp-lh-code: 22px;        /* 题目代码框、命令输出 */
+
+  /* 字重：仅 600 / 400 两级 */
+  --csp-fw-bold: 600;
+  --csp-fw-regular: 400;
+
+  /* 圆角与间距 */
+  --csp-radius: 8px;
+  --csp-radius-sm: 4px;
+  --csp-space: 16px;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--csp-font-family);
+  font-size: var(--csp-fs-body);
+  line-height: var(--csp-lh-body);
+  font-weight: var(--csp-fw-regular);
+  background: var(--csp-bg-page);
+  color: var(--csp-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- 排版工具类（严格对应规范层级） ---------- */
+.csp-page-title { font-size: var(--csp-fs-page-title); line-height: var(--csp-lh-page-title); font-weight: var(--csp-fw-bold); color: var(--csp-title); }
+.csp-h1 { font-size: var(--csp-fs-h1); line-height: var(--csp-lh-h1); font-weight: var(--csp-fw-bold); color: var(--csp-title); }
+.csp-h2 { font-size: var(--csp-fs-h2); line-height: var(--csp-lh-h2); font-weight: var(--csp-fw-bold); color: var(--csp-title); }
+.csp-h3 { font-size: var(--csp-fs-h3); line-height: var(--csp-lh-h3); font-weight: var(--csp-fw-bold); color: var(--csp-title); }
+.csp-body { font-size: var(--csp-fs-body); line-height: var(--csp-lh-body); color: var(--csp-text); }
+.csp-aux { font-size: var(--csp-fs-aux); line-height: var(--csp-lh-aux); color: var(--csp-text-secondary); }
+.csp-tip { font-size: var(--csp-fs-tip); line-height: var(--csp-lh-tip); color: var(--csp-text-secondary); }
+.csp-code { font-family: var(--csp-font-mono); font-size: var(--csp-fs-code); line-height: var(--csp-lh-code); }
+.csp-muted { color: var(--csp-text-secondary); }
+.csp-placeholder { color: var(--csp-placeholder); }
+
+/* ---------- 状态色工具类：只做状态反馈 ---------- */
+.is-success { color: var(--csp-success); }
+.is-warning { color: var(--csp-warning); }
+.is-danger  { color: var(--csp-danger); }
+.is-info    { color: var(--csp-info); }
+.is-disabled{ color: var(--csp-disabled); }
+
+/* 状态标签：浅底 + 状态色文字，避免大面积着色 */
+.csp-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--csp-radius-sm);
+  font-size: var(--csp-fs-tip);
+  line-height: var(--csp-lh-tip);
+  background: var(--csp-bg-card);
+  color: var(--csp-text-secondary);
+  border: 1px solid var(--csp-border);
+}
+.csp-tag--success { color: var(--csp-success); background: rgba(0, 180, 42, 0.08); border-color: rgba(0, 180, 42, 0.24); }
+.csp-tag--warning { color: var(--csp-warning); background: rgba(255, 125, 0, 0.08); border-color: rgba(255, 125, 0, 0.24); }
+.csp-tag--danger  { color: var(--csp-danger);  background: rgba(245, 63, 63, 0.08); border-color: rgba(245, 63, 63, 0.24); }
+.csp-tag--primary { color: var(--csp-primary); background: var(--csp-primary-light); border-color: rgba(41, 95, 255, 0.24); }
+
+/* ---------- 卡片 / 面板 ---------- */
+.csp-card {
+  background: var(--csp-bg-card);
+  border: 1px solid var(--csp-border);
+  border-radius: var(--csp-radius);
+  padding: var(--csp-space);
+}
+.csp-card--white { background: var(--csp-bg-page); }
+
+.csp-section-title {
+  font-size: var(--csp-fs-h2);
+  line-height: var(--csp-lh-h2);
+  font-weight: var(--csp-fw-bold);
+  color: var(--csp-title);
+  margin: 0 0 12px;
+  padding-left: 10px;
+  position: relative;
+}
+.csp-section-title::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 3px; height: 16px;
+  border-radius: 2px;
+  background: var(--csp-primary);
+}
+
+/* ---------- 布局工具 ---------- */
+.csp-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--csp-space); }
+.csp-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--csp-space); }
+.csp-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--csp-space); }
+
+/* ---------- 统计卡片（数据看板） ---------- */
+.csp-stat {
+  background: var(--csp-bg-page);
+  border: 1px solid var(--csp-border);
+  border-radius: var(--csp-radius);
+  padding: 18px 20px;
+}
+.csp-stat__label { font-size: var(--csp-fs-aux); line-height: var(--csp-lh-aux); color: var(--csp-text-secondary); }
+.csp-stat__value { font-size: 28px; line-height: 36px; font-weight: var(--csp-fw-bold); color: var(--csp-title); margin-top: 6px; font-variant-numeric: tabular-nums; }
+
+/* ---------- 排行榜 ---------- */
+.csp-rank-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 88px;
+  align-items: center;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--csp-border);
+  font-size: var(--csp-fs-body);
+}
+.csp-rank-row:last-child { border-bottom: none; }
+.csp-rank-row__no { font-weight: var(--csp-fw-bold); color: var(--csp-text-secondary); font-variant-numeric: tabular-nums; }
+.csp-rank-row--top1 .csp-rank-row__no { color: var(--csp-primary); }
+.csp-rank-row__name { color: var(--csp-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.csp-rank-row__score { text-align: right; font-weight: var(--csp-fw-bold); color: var(--csp-title); font-variant-numeric: tabular-nums; }
+
+/* ---------- 代码块 / 终端输出 ---------- */
+.csp-codeblock {
+  font-family: var(--csp-font-mono);
+  font-size: var(--csp-fs-code);
+  line-height: var(--csp-lh-code);
+  background: var(--csp-bg-card);
+  border: 1px solid var(--csp-border);
+  border-radius: var(--csp-radius-sm);
+  padding: 12px 14px;
+  color: var(--csp-title);
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ---------- 分割线 ---------- */
+.csp-divider { height: 1px; background: var(--csp-border); border: 0; margin: var(--csp-space) 0; }
+
+/* ---------- Element Plus 主题对齐 ---------- */
+:root {
+  --el-color-primary: #295FFF;
+  --el-color-primary-light-3: #6a8dff;
+  --el-color-primary-light-5: #94acff;
+  --el-color-primary-light-7: #bfcdff;
+  --el-color-primary-light-8: #d4ddff;
+  --el-color-primary-light-9: #e8eeff;
+  --el-color-primary-dark-2: #1b48e8;
+
+  --el-color-success: #00b42a;
+  --el-color-warning: #ff7d00;
+  --el-color-danger: #f53f3f;
+  --el-color-error: #f53f3f;
+  --el-color-info: #86909c;
+
+  --el-text-color-primary: #1d2129;
+  --el-text-color-regular: #4e5969;
+  --el-text-color-secondary: #86909c;
+  --el-text-color-placeholder: #c9cdd4;
+  --el-text-color-disabled: #c9cdd4;
+
+  --el-border-color: #e5e6eb;
+  --el-border-color-light: #e5e6eb;
+  --el-border-color-lighter: #e5e6eb;
+
+  --el-fill-color-blank: #ffffff;
+  --el-bg-color: #ffffff;
+  --el-bg-color-page: #f7f8fa;
+
+  --el-font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --el-font-size-base: 14px;
+  --el-border-radius-base: 8px;
+}
+
+.el-button--primary {
+  --el-button-bg-color: var(--csp-primary);
+  --el-button-border-color: var(--csp-primary);
+  --el-button-hover-bg-color: var(--csp-primary-dark);
+  --el-button-hover-border-color: var(--csp-primary-dark);
+  --el-button-active-bg-color: var(--csp-primary-dark);
+  --el-button-active-border-color: var(--csp-primary-dark);
+}
+.el-button { font-weight: var(--csp-fw-regular); }
+.el-button--primary { font-weight: var(--csp-fw-regular); }
+
+/* 表格：正文 14px，表头常规字重，分割线使用中性边框色 */
+.el-table { --el-table-border-color: var(--csp-border); --el-table-header-text-color: var(--csp-text); --el-table-text-color: var(--csp-text); font-size: var(--csp-fs-body); }
+.el-table th.el-table__cell { background: var(--csp-bg-card); font-weight: var(--csp-fw-regular); color: var(--csp-text-secondary); }
+.el-card { border-radius: var(--csp-radius); border-color: var(--csp-border); }
+.el-card__header { font-size: var(--csp-fs-h2); font-weight: var(--csp-fw-bold); color: var(--csp-title); }
+
+/* ---------- 滚动条 ---------- */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--csp-border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--csp-placeholder); }
+::-webkit-scrollbar-track { background: transparent; }

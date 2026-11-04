@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <parent><groupId>com.csp</groupId><artifactId>csp-parent</artifactId><version>1.0.0</version></parent>
+    <artifactId>csp-cfs</artifactId>
+    <name>csp-cfs</name>
+    <description>CFS 场景化渗透赛子系统：分层网络拓扑 + 递进解锁 + 递进得分</description>
+    <dependencies>
+        <dependency><groupId>com.csp</groupId><artifactId>csp-security</artifactId></dependency>
+        <dependency><groupId>com.csp</groupId><artifactId>csp-infra</artifactId></dependency>
+        <dependency><groupId>com.csp</groupId><artifactId>csp-ctf</artifactId><version>${project.version}</version></dependency>
+    </dependencies>
+</project>

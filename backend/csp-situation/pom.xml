@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <parent><groupId>com.csp</groupId><artifactId>csp-parent</artifactId><version>1.0.0</version></parent>
+    <artifactId>csp-situation</artifactId>
+    <name>csp-situation</name>
+    <description>态势感知子系统：排行榜/战队主页/大屏数据/靶机监控</description>
+    <dependencies>
+        <dependency><groupId>com.csp</groupId><artifactId>csp-security</artifactId></dependency>
+        <dependency><groupId>com.csp</groupId><artifactId>csp-infra</artifactId></dependency>
+        <dependency><groupId>com.csp</groupId><artifactId>csp-ctf</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>com.csp</groupId><artifactId>csp-awd</artifactId><version>${project.version}</version></dependency>
+    </dependencies>
+</project>

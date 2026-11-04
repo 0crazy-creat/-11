@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <parent><groupId>com.csp</groupId><artifactId>csp-parent</artifactId><version>1.0.0</version></parent>
+    <artifactId>csp-ctf</artifactId>
+    <name>csp-ctf</name>
+    <description>CTF 竞赛演练子系统</description>
+    <dependencies>
+        <dependency><groupId>com.csp</groupId><artifactId>csp-security</artifactId></dependency>
+        <dependency><groupId>com.csp</groupId><artifactId>csp-infra</artifactId></dependency>
+    </dependencies>
+</project>

@@ -1,0 +1,10 @@
+
+# ===== 异常命名垃圾目录(不删除, 仅不追踪) =====
+backend/D:/
+dev/m2repo;D/
+dev/settings.xml;D/
+backend;D/
+backend/D\:
+backend;D/
+.m2/
+.workbuddy-ai/

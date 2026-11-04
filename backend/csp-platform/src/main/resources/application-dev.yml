@@ -1,0 +1,27 @@
+# 开发环境：便于调试
+logging:
+  level:
+    com.csp: DEBUG
+    org.springframework.jdbc: DEBUG
+spring:
+  devtools:
+    restart:
+      enabled: false
+
+# ===== 通知渠道（本地验证：MailHog 承接 SMTP）=====
+csp:
+  # 靶场容器调度：显式指向本地 Docker 守护进程，避免回退模拟模式
+  docker:
+    enabled: false
+    host: tcp://localhost:2375
+    port-start: 40000
+    port-end: 50000
+    network-prefix: csp-net-
+  notify:
+    email-enabled: true
+    mail-host: 127.0.0.1
+    mail-port: 1025
+    mail-from: noreply@csp.local
+    mail-ssl: false
+    sms-enabled: false
+    sms-gateway: ""

@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  backend:
+    image: csp-backend:latest
+    container_name: csp-backend
+    ports:
+      - "8080:8080"
+    volumes:
+      # 挂载 Docker socket，让后端容器可以管理 Docker
+      - /var/run/docker.sock:/var/run/docker.sock
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://host.docker.internal:3306/csp?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false"
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: csp_root_2026
+      SPRING_DATA_REDIS_HOST: host.docker.internal
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_MONGODB_URI: "mongodb://host.docker.internal:27017/csp"
+      # Docker 配置 - 使用 Unix socket
+      CSP_DOCKER_ENABLED: "true"
+      CSP_DOCKER_HOST: "unix:///var/run/docker.sock"
+      CSP_DOCKER_PUBLIC_HOST: "127.0.0.1"
+    restart: unless-stopped

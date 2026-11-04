@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>基础 Web 靶场</title>
+  <style>
+    body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f7f8fa;color:#1d2129;
+         display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+    .card{background:#fff;border-radius:12px;padding:40px 48px;box-shadow:0 4px 24px rgba(0,0,0,.06);max-width:560px}
+    h1{margin:0 0 8px;font-size:24px;color:#295FFF}
+    .sub{color:#86909c;font-size:14px;margin-bottom:24px}
+    code{background:#e8eeff;color:#1b48e8;padding:2px 8px;border-radius:4px;font-size:13px}
+    ul{line-height:2;font-size:14px;color:#4e5969}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>基础 Web 靶场</h1>
+    <p class="sub">CSP Arena · Basic Web Target</p>
+    <ul>
+      <li>页面入口：<code>/</code></li>
+      <li>健康检查：<code>/healthz</code></li>
+      <li>Flag 回显：<code>/flag.txt</code></li>
+      <li>响应头：<code>X-Target-Flag</code></li>
+    </ul>
+  </div>
+</body>
+</html>

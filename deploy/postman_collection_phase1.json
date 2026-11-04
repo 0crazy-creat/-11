@@ -1,0 +1,508 @@
+{
+  "info": {
+    "name": "Phase 1 API 测试集合",
+    "description": "ABAC策略管理、队伍邀请码、反作弊分析、流量取证",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "contest_id",
+      "value": "100",
+      "type": "string"
+    },
+    {
+      "key": "team_id",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. 登录获取Token",
+      "item": [
+        {
+          "name": "管理员登录",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.code === 200) {",
+                  "    pm.collectionVariables.set('admin_token', jsonData.data.token);",
+                  "    console.log('Token saved:', jsonData.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"admin\",\n    \"password\": \"admin123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. ABAC 策略管理",
+      "item": [
+        {
+          "name": "创建策略",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"policyName\": \"测试策略-院校隔离\",\n    \"description\": \"仅允许同院校用户查看赛事\",\n    \"resourceType\": \"contest\",\n    \"action\": \"view\",\n    \"conditionExpr\": \"user.orgCode == resource.orgCode\",\n    \"effect\": \"ALLOW\",\n    \"priority\": 10,\n    \"enabled\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/abac/policies",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "abac", "policies"]
+            }
+          }
+        },
+        {
+          "name": "查询策略列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/abac/policies",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "abac", "policies"]
+            }
+          }
+        },
+        {
+          "name": "更新策略",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"policyName\": \"更新后的策略名称\",\n    \"description\": \"更新后的描述\",\n    \"priority\": 20\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/abac/policies/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "abac", "policies", "1"]
+            }
+          }
+        },
+        {
+          "name": "删除策略",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/abac/policies/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "abac", "policies", "1"]
+            }
+          }
+        },
+        {
+          "name": "测试策略评估",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"userId\": 1,\n    \"resourceType\": \"contest\",\n    \"resourceId\": \"100\",\n    \"action\": \"view\",\n    \"resource\": {\n        \"orgCode\": \"ORG001\",\n        \"status\": \"RUNNING\"\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/abac/test",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "abac", "test"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. 队伍邀请码",
+      "item": [
+        {
+          "name": "创建战队（自动生成邀请码）",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"测试战队\",\n    \"code\": \"TEST01\",\n    \"description\": \"测试用战队\",\n    \"slogan\": \"测试口号\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ctf/contests/{{contest_id}}/teams",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ctf", "contests", "{{contest_id}}", "teams"]
+            }
+          }
+        },
+        {
+          "name": "生成邀请码",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ctf/contests/{{contest_id}}/teams/{{team_id}}/invite-code",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ctf", "contests", "{{contest_id}}", "teams", "{{team_id}}", "invite-code"]
+            }
+          }
+        },
+        {
+          "name": "查询我的战队",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ctf/contests/{{contest_id}}/teams/mine",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ctf", "contests", "{{contest_id}}", "teams", "mine"]
+            }
+          }
+        },
+        {
+          "name": "通过邀请码加入",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"inviteCode\": \"ABCDEFGH\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ctf/contests/{{contest_id}}/teams/join-by-code",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ctf", "contests", "{{contest_id}}", "teams", "join-by-code"]
+            }
+          }
+        },
+        {
+          "name": "刷新邀请码",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ctf/contests/{{contest_id}}/teams/{{team_id}}/invite-code",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ctf", "contests", "{{contest_id}}", "teams", "{{team_id}}", "invite-code"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. CTF 反作弊分析",
+      "item": [
+        {
+          "name": "查询用户风险摘要",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ctf/contests/{{contest_id}}/anti-cheat/users/1/risk",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ctf", "contests", "{{contest_id}}", "anti-cheat", "users", "1", "risk"]
+            }
+          }
+        },
+        {
+          "name": "查询高风险用户列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ctf/contests/{{contest_id}}/anti-cheat/high-risk?minRiskScore=60",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ctf", "contests", "{{contest_id}}", "anti-cheat", "high-risk"],
+              "query": [
+                {
+                  "key": "minRiskScore",
+                  "value": "60"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. AWD 流量取证",
+      "item": [
+        {
+          "name": "启动流量捕获",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/awd/contests/{{contest_id}}/traffic/capture/start?roundNo=1&teamId=1&targetId=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "awd", "contests", "{{contest_id}}", "traffic", "capture", "start"],
+              "query": [
+                {
+                  "key": "roundNo",
+                  "value": "1"
+                },
+                {
+                  "key": "teamId",
+                  "value": "1"
+                },
+                {
+                  "key": "targetId",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "查询捕获列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/awd/contests/{{contest_id}}/traffic/captures?roundNo=1&teamId=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "awd", "contests", "{{contest_id}}", "traffic", "captures"],
+              "query": [
+                {
+                  "key": "roundNo",
+                  "value": "1"
+                },
+                {
+                  "key": "teamId",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "查询捕获详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/awd/contests/{{contest_id}}/traffic/capture/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "awd", "contests", "{{contest_id}}", "traffic", "capture", "1"]
+            }
+          }
+        },
+        {
+          "name": "停止捕获",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/awd/contests/{{contest_id}}/traffic/capture/1/stop",
+              "host": ["{{base_url}}"],
+              "path": ["api", "awd", "contests", "{{contest_id}}", "traffic", "capture", "1", "stop"]
+            }
+          }
+        },
+        {
+          "name": "查询分析结果",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/awd/contests/{{contest_id}}/traffic/capture/1/analysis",
+              "host": ["{{base_url}}"],
+              "path": ["api", "awd", "contests", "{{contest_id}}", "traffic", "capture", "1", "analysis"]
+            }
+          }
+        },
+        {
+          "name": "手动触发分析",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/awd/contests/{{contest_id}}/traffic/capture/1/analyze",
+              "host": ["{{base_url}}"],
+              "path": ["api", "awd", "contests", "{{contest_id}}", "traffic", "capture", "1", "analyze"]
+            }
+          }
+        },
+        {
+          "name": "清理过期文件",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/awd/contests/{{contest_id}}/traffic/cleanup",
+              "host": ["{{base_url}}"],
+              "path": ["api", "awd", "contests", "{{contest_id}}", "traffic", "cleanup"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
