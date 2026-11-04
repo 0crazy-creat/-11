@@ -324,7 +324,7 @@ async function doSubmit() {
   submitting.value = true
   feedback.value = null
   try {
-    const res = await submitFlag({ contestId: Number(props.contestId), challengeId: current.value.id, flag: flag.value.trim() })
+    const res = await submitFlag({ contestId: Number(props.contestId), questionId: current.value.id, content: flag.value.trim() })
     const ok = res === true || res?.correct === true || res?.success === true || res?.data === true
     if (ok) {
       solvedIds.value = new Set([...solvedIds.value, current.value.id])
