@@ -5,7 +5,7 @@ import request from '@/utils/request';
  */
 export function getPolicies(params) {
   return request({
-    url: '/api/admin/abac/policies',
+    url: '/admin/abac/policies',
     method: 'get',
     params
   });
@@ -16,7 +16,7 @@ export function getPolicies(params) {
  */
 export function getPolicy(id) {
   return request({
-    url: `/api/admin/abac/policies/${id}`,
+    url: `/admin/abac/policies/${id}`,
     method: 'get'
   });
 }
@@ -26,7 +26,7 @@ export function getPolicy(id) {
  */
 export function createPolicy(data) {
   return request({
-    url: '/api/admin/abac/policies',
+    url: '/admin/abac/policies',
     method: 'post',
     data
   });
@@ -37,7 +37,7 @@ export function createPolicy(data) {
  */
 export function updatePolicy(id, data) {
   return request({
-    url: `/api/admin/abac/policies/${id}`,
+    url: `/admin/abac/policies/${id}`,
     method: 'put',
     data
   });
@@ -48,7 +48,7 @@ export function updatePolicy(id, data) {
  */
 export function deletePolicy(id) {
   return request({
-    url: `/api/admin/abac/policies/${id}`,
+    url: `/admin/abac/policies/${id}`,
     method: 'delete'
   });
 }
@@ -58,7 +58,7 @@ export function deletePolicy(id) {
  */
 export function testPolicy(data) {
   return request({
-    url: '/api/admin/abac/test',
+    url: '/admin/abac/test',
     method: 'post',
     data
   });

@@ -5,7 +5,7 @@ import request from '@/utils/request';
  */
 export function startCapture(contestId, data) {
   return request({
-    url: `/api/awd/contests/${contestId}/traffic/capture/start`,
+    url: `/awd/contests/${contestId}/traffic/capture/start`,
     method: 'post',
     params: data
   });
@@ -16,7 +16,7 @@ export function startCapture(contestId, data) {
  */
 export function stopCapture(contestId, captureId) {
   return request({
-    url: `/api/awd/contests/${contestId}/traffic/capture/${captureId}/stop`,
+    url: `/awd/contests/${contestId}/traffic/capture/${captureId}/stop`,
     method: 'post'
   });
 }
@@ -26,7 +26,7 @@ export function stopCapture(contestId, captureId) {
  */
 export function listCaptures(contestId, params) {
   return request({
-    url: `/api/awd/contests/${contestId}/traffic/captures`,
+    url: `/awd/contests/${contestId}/traffic/captures`,
     method: 'get',
     params
   });
@@ -37,7 +37,7 @@ export function listCaptures(contestId, params) {
  */
 export function getCapture(contestId, captureId) {
   return request({
-    url: `/api/awd/contests/${contestId}/traffic/capture/${captureId}`,
+    url: `/awd/contests/${contestId}/traffic/capture/${captureId}`,
     method: 'get'
   });
 }
@@ -47,7 +47,7 @@ export function getCapture(contestId, captureId) {
  */
 export function getAnalysis(contestId, captureId) {
   return request({
-    url: `/api/awd/contests/${contestId}/traffic/capture/${captureId}/analysis`,
+    url: `/awd/contests/${contestId}/traffic/capture/${captureId}/analysis`,
     method: 'get'
   });
 }
@@ -57,7 +57,7 @@ export function getAnalysis(contestId, captureId) {
  */
 export function triggerAnalysis(contestId, captureId) {
   return request({
-    url: `/api/awd/contests/${contestId}/traffic/capture/${captureId}/analyze`,
+    url: `/awd/contests/${contestId}/traffic/capture/${captureId}/analyze`,
     method: 'post'
   });
 }
@@ -67,7 +67,7 @@ export function triggerAnalysis(contestId, captureId) {
  */
 export function downloadPcap(contestId, captureId) {
   return request({
-    url: `/api/awd/contests/${contestId}/traffic/capture/${captureId}/download`,
+    url: `/awd/contests/${contestId}/traffic/capture/${captureId}/download`,
     method: 'get',
     responseType: 'blob'
   }).then(res => {
@@ -81,7 +81,7 @@ export function downloadPcap(contestId, captureId) {
  */
 export function cleanupExpired(contestId) {
   return request({
-    url: `/api/awd/contests/${contestId}/traffic/cleanup`,
+    url: `/awd/contests/${contestId}/traffic/cleanup`,
     method: 'delete'
   });
 }

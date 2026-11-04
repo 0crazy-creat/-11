@@ -5,7 +5,7 @@ import request from '@/utils/request';
  */
 export function createTeam(contestId, data) {
   return request({
-    url: `/api/ctf/contests/${contestId}/teams`,
+    url: `/ctf/contests/${contestId}/teams`,
     method: 'post',
     data
   });
@@ -16,7 +16,7 @@ export function createTeam(contestId, data) {
  */
 export function joinTeam(contestId, teamId) {
   return request({
-    url: `/api/ctf/contests/${contestId}/teams/join`,
+    url: `/ctf/contests/${contestId}/teams/join`,
     method: 'post',
     data: { teamId }
   });
@@ -27,7 +27,7 @@ export function joinTeam(contestId, teamId) {
  */
 export function joinByInviteCode(contestId, inviteCode) {
   return request({
-    url: `/api/ctf/contests/${contestId}/teams/join-by-code`,
+    url: `/ctf/contests/${contestId}/teams/join-by-code`,
     method: 'post',
     data: { inviteCode }
   });
@@ -38,7 +38,7 @@ export function joinByInviteCode(contestId, inviteCode) {
  */
 export function quitTeam(contestId) {
   return request({
-    url: `/api/ctf/contests/${contestId}/teams/quit`,
+    url: `/ctf/contests/${contestId}/teams/quit`,
     method: 'delete'
   });
 }
@@ -48,7 +48,7 @@ export function quitTeam(contestId) {
  */
 export function getMyTeam(contestId) {
   return request({
-    url: `/api/ctf/contests/${contestId}/teams/mine`,
+    url: `/ctf/contests/${contestId}/teams/mine`,
     method: 'get'
   });
 }
@@ -58,7 +58,7 @@ export function getMyTeam(contestId) {
  */
 export function getTeamMembers(contestId, teamId) {
   return request({
-    url: `/api/ctf/contests/${contestId}/teams/${teamId}/members`,
+    url: `/ctf/contests/${contestId}/teams/${teamId}/members`,
     method: 'get'
   });
 }
@@ -68,7 +68,7 @@ export function getTeamMembers(contestId, teamId) {
  */
 export function generateInviteCode(contestId, teamId) {
   return request({
-    url: `/api/ctf/contests/${contestId}/teams/${teamId}/invite-code`,
+    url: `/ctf/contests/${contestId}/teams/${teamId}/invite-code`,
     method: 'post'
   });
 }
@@ -78,7 +78,7 @@ export function generateInviteCode(contestId, teamId) {
  */
 export function refreshInviteCode(contestId, teamId) {
   return request({
-    url: `/api/ctf/contests/${contestId}/teams/${teamId}/invite-code`,
+    url: `/ctf/contests/${contestId}/teams/${teamId}/invite-code`,
     method: 'put'
   });
 }
@@ -88,7 +88,7 @@ export function refreshInviteCode(contestId, teamId) {
  */
 export function reviewTeam(contestId, teamId, status) {
   return request({
-    url: `/api/ctf/contests/${contestId}/teams/${teamId}/review`,
+    url: `/ctf/contests/${contestId}/teams/${teamId}/review`,
     method: 'post',
     params: { status }
   });
@@ -99,7 +99,7 @@ export function reviewTeam(contestId, teamId, status) {
  */
 export function getTeams(contestId) {
   return request({
-    url: `/api/ctf/contests/${contestId}/teams`,
+    url: `/ctf/contests/${contestId}/teams`,
     method: 'get'
   });
 }

@@ -145,10 +145,13 @@ async function loadChallenges() {
       difficulty: filter.difficulty,
       keyword: filter.keyword
     })
+    console.log('API response:', res)
     challenges.value = res?.records || res || []
     total.value = res?.total || 0
+    console.log('Challenges loaded:', challenges.value.length)
   } catch (error) {
-    ElMessage.error('加载题目失败')
+    console.error('Load challenges error:', error)
+    ElMessage.error('加载题目失败: ' + (error.message || '未知错误'))
   } finally {
     loading.value = false
   }

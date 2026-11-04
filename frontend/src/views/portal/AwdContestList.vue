@@ -64,10 +64,12 @@ async function loadContests() {
   loading.value = true
   try {
     const res = await getContests({ types: 'AWD,AWDP' })
-    // request拦截器已解包res.data，这里res直接是{records:[], total:N}
+    console.log('AWD contests API response:', res)
     contests.value = res?.records || res || []
+    console.log('AWD contests loaded:', contests.value.length)
   } catch (error) {
-    ElMessage.error('加载赛事失败')
+    console.error('Load AWD contests error:', error)
+    ElMessage.error('加载赛事失败: ' + (error.message || '未知错误'))
   } finally {
     loading.value = false
   }

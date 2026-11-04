@@ -5,7 +5,7 @@ import request from '@/utils/request'
  */
 export function getChallenges(params) {
   return request({
-    url: '/api/ctf/challenges',
+    url: '/practice/challenges',
     method: 'get',
     params
   })
@@ -16,7 +16,7 @@ export function getChallenges(params) {
  */
 export function getChallengeDetail(id) {
   return request({
-    url: `/api/ctf/challenges/${id}`,
+    url: `/ctf/challenges/${id}`,
     method: 'get'
   })
 }
@@ -26,7 +26,7 @@ export function getChallengeDetail(id) {
  */
 export function submitFlag(challengeId, flag) {
   return request({
-    url: `/api/ctf/challenges/${challengeId}/submit`,
+    url: `/ctf/challenges/${challengeId}/submit`,
     method: 'post',
     data: { flag }
   })
@@ -37,7 +37,7 @@ export function submitFlag(challengeId, flag) {
  */
 export function startContainer(challengeId) {
   return request({
-    url: `/api/ctf/challenges/${challengeId}/container/start`,
+    url: `/ctf/challenges/${challengeId}/container/start`,
     method: 'post'
   })
 }
@@ -47,7 +47,7 @@ export function startContainer(challengeId) {
  */
 export function stopContainer(challengeId) {
   return request({
-    url: `/api/ctf/challenges/${challengeId}/container/stop`,
+    url: `/ctf/challenges/${challengeId}/container/stop`,
     method: 'post'
   })
 }
@@ -57,7 +57,7 @@ export function stopContainer(challengeId) {
  */
 export function getContainerStatus(challengeId) {
   return request({
-    url: `/api/ctf/challenges/${challengeId}/container/status`,
+    url: `/ctf/challenges/${challengeId}/container/status`,
     method: 'get'
   })
 }

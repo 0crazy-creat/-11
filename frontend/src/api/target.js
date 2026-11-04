@@ -5,7 +5,7 @@ import request from '@/utils/request';
  */
 export function getTargets(contestId) {
   return request({
-    url: `/api/awd/contests/${contestId}/targets`,
+    url: `/awd/contests/${contestId}/targets`,
     method: 'get'
   });
 }
@@ -15,7 +15,7 @@ export function getTargets(contestId) {
  */
 export function getTargetDetail(contestId, targetId) {
   return request({
-    url: `/api/awd/contests/${contestId}/targets/${targetId}`,
+    url: `/awd/contests/${contestId}/targets/${targetId}`,
     method: 'get'
   });
 }
@@ -25,7 +25,7 @@ export function getTargetDetail(contestId, targetId) {
  */
 export function createTarget(contestId, data) {
   return request({
-    url: `/api/awd/contests/${contestId}/targets`,
+    url: `/awd/contests/${contestId}/targets`,
     method: 'post',
     data
   });
@@ -36,7 +36,7 @@ export function createTarget(contestId, data) {
  */
 export function updateTarget(contestId, targetId, data) {
   return request({
-    url: `/api/awd/contests/${contestId}/targets/${targetId}`,
+    url: `/awd/contests/${contestId}/targets/${targetId}`,
     method: 'put',
     data
   });
@@ -47,7 +47,7 @@ export function updateTarget(contestId, targetId, data) {
  */
 export function deleteTarget(contestId, targetId) {
   return request({
-    url: `/api/awd/contests/${contestId}/targets/${targetId}`,
+    url: `/awd/contests/${contestId}/targets/${targetId}`,
     method: 'delete'
   });
 }
@@ -57,7 +57,7 @@ export function deleteTarget(contestId, targetId) {
  */
 export function startTarget(contestId, targetId) {
   return request({
-    url: `/api/awd/contests/${contestId}/targets/${targetId}/start`,
+    url: `/awd/contests/${contestId}/targets/${targetId}/start`,
     method: 'post'
   });
 }
@@ -67,7 +67,7 @@ export function startTarget(contestId, targetId) {
  */
 export function stopTarget(contestId, targetId) {
   return request({
-    url: `/api/awd/contests/${contestId}/targets/${targetId}/stop`,
+    url: `/awd/contests/${contestId}/targets/${targetId}/stop`,
     method: 'post'
   });
 }

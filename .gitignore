@@ -1,10 +1,51 @@
+# ===== 依赖 =====
+node_modules/
+.m2/
+.m2repo/
+**/.m2repo/
+dev/m2repo/
+dev/m2repo;D/
 
-# ===== 异常命名垃圾目录(不删除, 仅不追踪) =====
+# ===== 构建产物 =====
+target/
+dist/
+build/
+*.jar
+*.war
+*.class
+logs/
+backend/logs/
+
+# ===== 敏感配置 =====
+.env
+.env.*
+*.env
+backend/.env.backend
+*.pem
+*.key
+*.p12
+id_rsa*
+
+# ===== 第三方参考项目(含嵌套 .git) =====
+参考/
+
+# ===== 运行时数据/缓存 =====
+data/import/
+*.log
+
+# ===== 异常命名目录(Windows 冒号/分号残留, 不追踪原始文件) =====
 backend/D:/
+backend;D/
 dev/m2repo;D/
 dev/settings.xml;D/
-backend;D/
-backend/D\:
-backend;D/
-.m2/
+
+# ===== IDE / 系统 =====
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
 .workbuddy-ai/
+
+# ===== 打包产物 =====
+*.zip

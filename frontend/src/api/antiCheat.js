@@ -5,7 +5,7 @@ import request from '@/utils/request';
  */
 export function getUserRiskSummary(contestId, userId) {
   return request({
-    url: `/api/ctf/contests/${contestId}/anti-cheat/users/${userId}/risk`,
+    url: `/ctf/contests/${contestId}/anti-cheat/users/${userId}/risk`,
     method: 'get'
   });
 }
@@ -15,7 +15,7 @@ export function getUserRiskSummary(contestId, userId) {
  */
 export function getHighRiskUsers(contestId, minRiskScore = 60) {
   return request({
-    url: `/api/ctf/contests/${contestId}/anti-cheat/high-risk`,
+    url: `/ctf/contests/${contestId}/anti-cheat/high-risk`,
     method: 'get',
     params: { minRiskScore }
   });
@@ -26,7 +26,7 @@ export function getHighRiskUsers(contestId, minRiskScore = 60) {
  */
 export function suspendUser(contestId, userId, reason) {
   return request({
-    url: `/api/ctf/contests/${contestId}/anti-cheat/users/${userId}/suspend`,
+    url: `/ctf/contests/${contestId}/anti-cheat/users/${userId}/suspend`,
     method: 'post',
     data: { reason }
   });
@@ -37,7 +37,7 @@ export function suspendUser(contestId, userId, reason) {
  */
 export function clearUser(contestId, userId, note) {
   return request({
-    url: `/api/ctf/contests/${contestId}/anti-cheat/users/${userId}/clear`,
+    url: `/ctf/contests/${contestId}/anti-cheat/users/${userId}/clear`,
     method: 'post',
     data: { note }
   });
@@ -48,7 +48,7 @@ export function clearUser(contestId, userId, note) {
  */
 export function submitFingerprint(contestId, deviceId, fingerprint, userAgent) {
   return request({
-    url: `/api/ctf/contests/${contestId}/anti-cheat/fingerprint`,
+    url: `/ctf/contests/${contestId}/anti-cheat/fingerprint`,
     method: 'post',
     data: {
       deviceId,

@@ -64,9 +64,12 @@ async function loadContests() {
   loading.value = true
   try {
     const res = await getContests({ types: 'CTF' })
+    console.log('CTF contests API response:', res)
     contests.value = res?.records || res || []
+    console.log('CTF contests loaded:', contests.value.length)
   } catch (error) {
-    ElMessage.error('加载赛事失败')
+    console.error('Load CTF contests error:', error)
+    ElMessage.error('加载赛事失败: ' + (error.message || '未知错误'))
   } finally {
     loading.value = false
   }

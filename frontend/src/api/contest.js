@@ -5,7 +5,7 @@ import request from '@/utils/request'
  */
 export function getContests(params) {
   return request({
-    url: '/api/contests',
+    url: '/contests',
     method: 'get',
     params
   })
@@ -16,7 +16,7 @@ export function getContests(params) {
  */
 export function getContestDetail(id) {
   return request({
-    url: `/api/contests/${id}`,
+    url: `/contests/${id}`,
     method: 'get'
   })
 }
@@ -26,7 +26,7 @@ export function getContestDetail(id) {
  */
 export function createContest(data) {
   return request({
-    url: '/api/contests',
+    url: '/contests',
     method: 'post',
     data
   })
@@ -37,7 +37,7 @@ export function createContest(data) {
  */
 export function updateContest(id, data) {
   return request({
-    url: `/api/contests/${id}`,
+    url: `/contests/${id}`,
     method: 'put',
     data
   })
@@ -48,7 +48,7 @@ export function updateContest(id, data) {
  */
 export function deleteContest(id) {
   return request({
-    url: `/api/contests/${id}`,
+    url: `/contests/${id}`,
     method: 'delete'
   })
 }
@@ -58,7 +58,7 @@ export function deleteContest(id) {
  */
 export function changeContestStatus(id, status) {
   return request({
-    url: `/api/contests/${id}/status`,
+    url: `/contests/${id}/status`,
     method: 'post',
     data: { status }
   })
@@ -69,7 +69,7 @@ export function changeContestStatus(id, status) {
  */
 export function getMyContests() {
   return request({
-    url: '/api/contests/mine',
+    url: '/contests/mine',
     method: 'get'
   })
 }
@@ -79,7 +79,7 @@ export function getMyContests() {
  */
 export function signUpContest(id, data) {
   return request({
-    url: `/api/contests/${id}/signup`,
+    url: `/contests/${id}/signup`,
     method: 'post',
     data
   })
@@ -90,7 +90,7 @@ export function signUpContest(id, data) {
  */
 export function getContestRanking(id, params) {
   return request({
-    url: `/api/contests/${id}/ranking`,
+    url: `/contests/${id}/ranking`,
     method: 'get',
     params
   })

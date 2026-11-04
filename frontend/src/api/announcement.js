@@ -5,7 +5,7 @@ import request from '@/utils/request'
  */
 export function getAnnouncements(params) {
   return request({
-    url: '/api/announcements',
+    url: '/announcements',
     method: 'get',
     params
   })
@@ -16,7 +16,7 @@ export function getAnnouncements(params) {
  */
 export function getAnnouncementDetail(id) {
   return request({
-    url: `/api/announcements/${id}`,
+    url: `/announcements/${id}`,
     method: 'get'
   })
 }
@@ -26,7 +26,7 @@ export function getAnnouncementDetail(id) {
  */
 export function createAnnouncement(data) {
   return request({
-    url: '/api/announcements',
+    url: '/announcements',
     method: 'post',
     data
   })
@@ -37,7 +37,7 @@ export function createAnnouncement(data) {
  */
 export function updateAnnouncement(id, data) {
   return request({
-    url: `/api/announcements/${id}`,
+    url: `/announcements/${id}`,
     method: 'put',
     data
   })
@@ -48,7 +48,7 @@ export function updateAnnouncement(id, data) {
  */
 export function deleteAnnouncement(id) {
   return request({
-    url: `/api/announcements/${id}`,
+    url: `/announcements/${id}`,
     method: 'delete'
   })
 }
@@ -58,7 +58,7 @@ export function deleteAnnouncement(id) {
  */
 export function markAnnouncementRead(id) {
   return request({
-    url: `/api/announcements/${id}/read`,
+    url: `/announcements/${id}/read`,
     method: 'post'
   })
 }
@@ -68,7 +68,7 @@ export function markAnnouncementRead(id) {
  */
 export function getLatestAnnouncement() {
   return request({
-    url: '/api/announcements/latest',
+    url: '/announcements/latest',
     method: 'get'
   })
 }

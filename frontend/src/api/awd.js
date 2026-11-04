@@ -5,7 +5,7 @@ import request from '@/utils/request';
  */
 export function getRounds(contestId) {
   return request({
-    url: `/api/awd/contests/${contestId}/rounds`,
+    url: `/awd/contests/${contestId}/rounds`,
     method: 'get'
   });
 }
@@ -15,7 +15,7 @@ export function getRounds(contestId) {
  */
 export function getCurrentRound(contestId) {
   return request({
-    url: `/api/awd/contests/${contestId}/rounds/current`,
+    url: `/awd/contests/${contestId}/rounds/current`,
     method: 'get'
   });
 }
@@ -25,7 +25,7 @@ export function getCurrentRound(contestId) {
  */
 export function startNewRound(contestId) {
   return request({
-    url: `/api/awd/contests/${contestId}/rounds/start`,
+    url: `/awd/contests/${contestId}/rounds/start`,
     method: 'post'
   });
 }
@@ -35,7 +35,7 @@ export function startNewRound(contestId) {
  */
 export function endRound(contestId, roundId) {
   return request({
-    url: `/api/awd/contests/${contestId}/rounds/${roundId}/end`,
+    url: `/awd/contests/${contestId}/rounds/${roundId}/end`,
     method: 'post'
   });
 }
@@ -45,7 +45,7 @@ export function endRound(contestId, roundId) {
  */
 export function getRoundDetail(contestId, roundId) {
   return request({
-    url: `/api/awd/contests/${contestId}/rounds/${roundId}`,
+    url: `/awd/contests/${contestId}/rounds/${roundId}`,
     method: 'get'
   });
 }
