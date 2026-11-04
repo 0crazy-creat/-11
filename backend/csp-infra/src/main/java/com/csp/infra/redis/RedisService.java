@@ -2,6 +2,7 @@ package com.csp.infra.redis;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +20,9 @@ public class RedisService {
 
     private final RedisTemplate<String, Object> redisTemplate;
 
+    /** 纯字符串通道：flag/token 等裸字符串，绕过 JSON 序列化器。 */
+    private final StringRedisTemplate stringRedisTemplate;
+
     // ---------- 基础 ----------
     public void set(String key, Object value) { redisTemplate.opsForValue().set(key, value); }
 
@@ -26,6 +30,22 @@ public class RedisService {
 
     @SuppressWarnings("unchecked")
     public <T> T get(String key) { return (T) redisTemplate.opsForValue().get(key); }
+
+    // ---------- 纯字符串（flag / token 等，绕过 JSON 序列化）----------
+    public void setString(String key, String value) { stringRedisTemplate.opsForValue().set(key, value); }
+
+    public void setString(String key, String value, Duration ttl) { stringRedisTemplate.opsForValue().set(key, value, ttl); }
+
+    public String getString(String key) { return stringRedisTemplate.opsForValue().get(key); }
+
+    public Long incrementString(String key) { return stringRedisTemplate.opsForValue().increment(key); }
+
+    public void hSetString(String key, String field, String value) { stringRedisTemplate.opsForHash().put(key, field, value); }
+
+    public String hGetString(String key, String field) {
+        Object v = stringRedisTemplate.opsForHash().get(key, field);
+        return v == null ? null : v.toString();
+    }
 
     public Boolean delete(String key) { return redisTemplate.delete(key); }
 

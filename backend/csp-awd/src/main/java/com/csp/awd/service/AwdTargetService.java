@@ -204,8 +204,9 @@ public class AwdTargetService {
 
                 // 1) 写入 Redis（该轮 flag 校验源）
                 String key = AwdKeys.flagOne(contestId, roundNo, t.getTeamId(), t.getQuestionId());
-                redisService.set(key, newFlag, java.time.Duration.ofHours(24));
-                redisService.hSet(AwdKeys.roundFlags(contestId, roundNo),
+                // 必须与 AwdScoreService 的读取方式一致：纯字符串读写，避免 JSON 反序列化报错
+                redisService.setString(key, newFlag, java.time.Duration.ofHours(24));
+                redisService.hSetString(AwdKeys.roundFlags(contestId, roundNo),
                         t.getTeamId() + ":" + t.getQuestionId(), newFlag);
 
                 // 2) 重启容器并注入新 flag

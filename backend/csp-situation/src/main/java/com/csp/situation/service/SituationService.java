@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.csp.awd.dto.TargetVO;
 import com.csp.awd.service.AwdTargetService;
+import com.csp.awd.service.AwdScoreService;
+import com.csp.awd.dto.ScoreVO;
 import com.csp.common.api.ResultCode;
 import com.csp.common.exception.BizException;
 import com.csp.ctf.dto.RankItem;
@@ -45,17 +47,18 @@ public class SituationService {
     private final SubmissionMapper submissionMapper;
     private final ScoreboardService scoreboardService;
     private final AwdTargetService targetService;
+    private final AwdScoreService awdScoreService;
 
     // ---------------- 总览 ----------------
 
     public OverviewVO overview(Long contestId) {
         Contest contest = requireContest(contestId);
         List<ContestTeam> teams = teamsOf(contestId);
-        List<RankItem> top = scoreboardService.topN(contestId, 1);
+        List<RankItem> top = ranking(contestId, 1);
         RankItem leader = top.isEmpty() ? null : top.get(0);
 
         int solvedTotal = 0;
-        for (RankItem it : scoreboardService.topN(contestId, MAX_TOP_N)) {
+        for (RankItem it : ranking(contestId, MAX_TOP_N)) {
             solvedTotal += it.getSolved();
         }
 
@@ -81,9 +84,45 @@ public class SituationService {
     // ---------------- 排行榜 ----------------
 
     public List<RankItem> ranking(Long contestId, Integer topN) {
-        requireContest(contestId);
+        Contest contest = requireContest(contestId);
         int n = topN == null ? DEFAULT_TOP_N : Math.min(Math.max(topN, 1), MAX_TOP_N);
+        // AWD/AWDP 的分数存在 csp:awd:total:{contestId}，与 CTF 的 csp:rank:{contestId} 是两套数据源，
+        // 必须按赛事类型分流，否则 AWD 大屏/排行榜永远为空。
+        if (isAwdType(contest.getType())) {
+            List<RankItem> awd = awdRanking(contestId, n);
+            if (!awd.isEmpty()) return awd;
+        }
         return scoreboardService.topN(contestId, n);
+    }
+
+    private static boolean isAwdType(String type) {
+        return "AWD".equalsIgnoreCase(type) || "AWDP".equalsIgnoreCase(type);
+    }
+
+    /** 把 AWD 实时榜（Redis）映射为通用 RankItem，供大屏/排行榜复用。 */
+    private List<RankItem> awdRanking(Long contestId, int n) {
+        try {
+            List<ScoreVO> board = awdScoreService.leaderboard(contestId, n);
+            if (board == null || board.isEmpty()) return List.of();
+            Map<Long, ContestTeam> teams = new LinkedHashMap<>();
+            for (ContestTeam t : teamsOf(contestId)) teams.put(t.getId(), t);
+            List<RankItem> items = new ArrayList<>();
+            int rank = 1;
+            for (ScoreVO vo : board) {
+                ContestTeam team = teams.get(vo.getTeamId());
+                items.add(RankItem.builder()
+                        .rank(rank++)
+                        .teamId(vo.getTeamId())
+                        .teamName(team == null ? String.valueOf(vo.getTeamId()) : team.getName())
+                        .score(vo.getScore())
+                        .solved((int) vo.getAttackSuccessCount())
+                        .build());
+            }
+            return items;
+        } catch (Exception e) {
+            log.warn("AWD 排行榜获取失败 contestId={}: {}", contestId, e.getMessage());
+            return List.of();
+        }
     }
 
     // ---------------- 战队主页 ----------------
@@ -94,7 +133,7 @@ public class SituationService {
         if (team == null || !contestId.equals(team.getContestId())) {
             throw BizException.notFound("战队");
         }
-        List<RankItem> all = scoreboardService.topN(contestId, MAX_TOP_N);
+        List<RankItem> all = ranking(contestId, MAX_TOP_N);
         RankItem mine = null;
         int idx = -1;
         for (int i = 0; i < all.size(); i++) {

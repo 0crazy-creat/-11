@@ -416,12 +416,12 @@ public class AwdScoreService {
     /** 生成并缓存某队某题的动态 flag（幂等：已存在直接返回）。 */
     public String issueFlag(Long contestId, Integer roundNo, Long teamId, Long questionId, String prefix) {
         String key = AwdKeys.flagOne(contestId, roundNo, teamId, questionId);
-        String cached = redisService.get(key);
+        String cached = redisService.getString(key);
         if (cached != null) return cached;
         String flag = FlagUtils.dynamicFlag(prefix == null || prefix.isBlank() ? "awd" : prefix,
                 teamId, roundNo);
-        redisService.set(key, flag, FLAG_TTL);
-        redisService.hSet(AwdKeys.roundFlags(contestId, roundNo),
+        redisService.setString(key, flag, FLAG_TTL);
+        redisService.hSetString(AwdKeys.roundFlags(contestId, roundNo),
                 teamId + ":" + questionId, flag);
         return flag;
     }
@@ -442,7 +442,7 @@ public class AwdScoreService {
 
     /** 校验提交的 flag 是否匹配。 */
     private boolean verifyFlag(Long contestId, Integer roundNo, Long teamId, Long questionId, String submitted) {
-        String expected = redisService.get(AwdKeys.flagOne(contestId, roundNo, teamId, questionId));
+        String expected = redisService.getString(AwdKeys.flagOne(contestId, roundNo, teamId, questionId));
         if (expected == null) {
             log.debug("flag 未签发 contest={} round={} team={} q={}", contestId, roundNo, teamId, questionId);
             return false;
