@@ -215,7 +215,8 @@ function parseOptions(q) {
  */
 async function checkEnrolled() {
   try {
-    const team = await teamApi.getMyTeam(contestId.value)
+    // 全局战队改造后，参赛记录接口由 getMyTeam 更名为 myEnroll
+    const team = await teamApi.myEnroll(contestId.value)
     const ok = team && String(team.status || '').toUpperCase() === 'APPROVED'
     notEnrolled.value = !ok
     return ok
