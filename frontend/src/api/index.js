@@ -326,7 +326,10 @@ export const getCfsTopology = (contestId) => request.get(`/cfs/contests/${contes
 export const submitCfsFlag = (data) => request.post('/cfs/submissions', data)
 export const getCfsInstance = (contestId) => request.get(`/cfs/contests/${contestId}/instance`)
 export const createCfsTopology = (data) => request.post('/cfs/admin/topologies', data)
+export const listCfsTopologies = (params) => request.get('/cfs/admin/topologies', { params })
 export const getCfsTopologyDef = (id) => request.get(`/cfs/admin/topologies/${id}`)
+export const getCfsTopologyLayers = (id) => request.get(`/cfs/admin/topologies/${id}/layers`)
+export const getCfsTopologyNodes = (id) => request.get(`/cfs/admin/topologies/${id}/nodes`)
 export const publishCfsTopology = (id) => request.post(`/cfs/admin/topologies/${id}/publish`)
 export const startCfsContest = (contestId) => request.post(`/cfs/admin/contests/${contestId}/start`)
 
@@ -335,7 +338,10 @@ export const cfsApi = {
   submit: submitCfsFlag,
   instance: getCfsInstance,
   createTopology: createCfsTopology,
+  listTopologies: listCfsTopologies,
   topologyDef: getCfsTopologyDef,
+  topologyLayers: getCfsTopologyLayers,
+  topologyNodes: getCfsTopologyNodes,
   publish: publishCfsTopology,
   start: startCfsContest
 }
