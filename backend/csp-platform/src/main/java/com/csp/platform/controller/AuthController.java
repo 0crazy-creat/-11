@@ -5,6 +5,7 @@ import com.csp.common.util.IpUtils;
 import com.csp.platform.dto.ChangePasswordCmd;
 import com.csp.platform.dto.LoginCmd;
 import com.csp.platform.dto.RegisterCmd;
+import com.csp.platform.dto.UpdateProfileCmd;
 import com.csp.platform.dto.UserSaveCmd;
 import com.csp.platform.dto.LoginVO;
 import com.csp.platform.dto.RefreshCmd;
@@ -19,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -81,6 +83,13 @@ public class AuthController {
         return Result.ok(authService.currentUser());
     }
 
+    @Operation(summary = "更新本人资料（昵称、姓名、手机、邮箱）")
+    @PutMapping("/profile")
+    public Result<Void> updateProfile(@RequestBody UpdateProfileCmd cmd) {
+        authService.updateProfile(cmd);
+        return Result.ok();
+    }
+
     @Operation(summary = "修改本人密码")
     @PostMapping("/password")
     public Result<Void> changePassword(@Valid @RequestBody ChangePasswordCmd cmd) {
@@ -88,25 +97,32 @@ public class AuthController {
         return Result.ok();
     }
 
-    @Operation(summary = "下发短信验证码（本地验证直接返回）")
+    @Operation(summary = "下发短信验证码（本地模式返回 code 便于自测，真实网关模式不返回）")
     @PublicApi
     @PostMapping("/sms-code")
     public Result<java.util.Map<String, String>> smsCode(@RequestParam String phone) {
         String code = authService.issueSmsCode(phone);
-        return Result.ok(java.util.Map.of("phone", phone, "code", code, "ttlSeconds", "300"));
+        java.util.Map<String, String> body = new java.util.LinkedHashMap<>();
+        body.put("phone", phone);
+        body.put("ttlSeconds", "300");
+        // 仅本地/演示模式会返回明文 code；真实短信网关返回 null，此处不下发，避免泄露
+        if (code != null && !code.isBlank()) {
+            body.put("code", code);
+        }
+        return Result.ok(body);
     }
 
     @Operation(summary = "手机号 + 短信验证码登录")
     @PublicApi
     @PostMapping("/login-phone")
-    public Result<LoginVO> loginPhone(@RequestBody com.csp.platform.dto.LoginCmd cmd, HttpServletRequest request) {
+    public Result<LoginVO> loginPhone(@Valid @RequestBody com.csp.platform.dto.PhoneLoginCmd cmd, HttpServletRequest request) {
         return Result.ok(authService.loginByPhone(cmd.getPhone(), cmd.getSmsCode(), IpUtils.getClientIp(request)));
     }
 
     @Operation(summary = "第三方登录（wechat/dingtalk/github）")
     @PublicApi
     @PostMapping("/login-third")
-    public Result<LoginVO> loginThird(@RequestBody com.csp.platform.dto.LoginCmd cmd, HttpServletRequest request) {
+    public Result<LoginVO> loginThird(@Valid @RequestBody com.csp.platform.dto.ThirdLoginCmd cmd, HttpServletRequest request) {
         return Result.ok(authService.loginByThird(cmd.getProvider(), cmd.getThirdToken(), IpUtils.getClientIp(request)));
     }
 

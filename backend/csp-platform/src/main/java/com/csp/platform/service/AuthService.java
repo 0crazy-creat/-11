@@ -5,6 +5,7 @@ import com.csp.common.api.ResultCode;
 import com.csp.common.exception.BizException;
 import com.csp.platform.dto.LoginCmd;
 import com.csp.platform.dto.LoginVO;
+import com.csp.platform.dto.UpdateProfileCmd;
 import com.csp.platform.dto.UserProfileVO;
 import com.csp.platform.entity.SysUser;
 import com.csp.platform.mapper.SysPermissionMapper;
@@ -44,6 +45,10 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final JwtProperties jwtProperties;
+    private final SmsService smsService;
+    private final com.csp.platform.mapper.SysRoleMapper roleMapper;
+    private final com.csp.platform.wechat.WechatProperties wechatProps;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     // ---------------- 登录 ----------------
 
@@ -99,27 +104,13 @@ public class AuthService {
     /** 手机号 + 短信验证码登录（无账号则自动注册）。 */
     @Transactional
     public LoginVO loginByPhone(String phone, String smsCode, String clientIp) {
-        if (phone == null || phone.isBlank()) throw new BizException(ResultCode.BAD_REQUEST, "手机号不能为空");
-        if (smsCode == null || smsCode.isBlank()) throw new BizException(ResultCode.BAD_REQUEST, "短信验证码不能为空");
-        // 验证码校验：Redis key csp:sms:{phone}，由 /api/auth/sms-code 下发
-        String key = "csp:sms:" + phone;
-        String expect = redisService.get(key);
-        if (expect == null || !expect.equals(smsCode.trim())) {
-            throw new BizException(ResultCode.UNAUTHORIZED, "短信验证码错误或已过期");
-        }
-        redisService.delete(key);
+        smsService.verify(phone, smsCode);
+        String p = phone.trim();
 
-        SysUser user = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery().eq(SysUser::getPhone, phone));
+        SysUser user = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
+                .eq(SysUser::getPhone, p).eq(SysUser::getDeleted, 0).last("LIMIT 1"));
         if (user == null) {
-            // 自动注册普通用户
-            user = new SysUser();
-            user.setUsername("u" + phone);
-            user.setNickname("手机用户" + phone.substring(Math.max(0, phone.length() - 4)));
-            user.setPhone(phone);
-            user.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
-            user.setStatus(1);
-            userMapper.insert(user);
-            log.info("手机号首次登录，自动注册 userId={} phone={}", user.getId(), phone);
+            user = createPhoneUser(p);
         }
         if (user.isLocked()) throw new BizException(ResultCode.FORBIDDEN, "账号已锁定");
         if (!user.isEnabled()) throw new BizException(ResultCode.FORBIDDEN, "账号已禁用");
@@ -179,13 +170,62 @@ public class AuthService {
         return vo;
     }
 
-    /** 下发短信验证码（本地验证用：直接返回验证码便于测试）。 */
+    /** 下发短信验证码。真实网关模式返回 null（不回显）；本地模式返回验证码便于自测。 */
     public String issueSmsCode(String phone) {
-        if (phone == null || phone.isBlank()) throw new BizException(ResultCode.BAD_REQUEST, "手机号不能为空");
-        String code = String.format("%06d", new java.util.Random().nextInt(1000000));
-        redisService.set("csp:sms:" + phone, code, java.time.Duration.ofMinutes(5));
-        log.info("[SMS] 验证码已下发 phone={} code={}", phone, code);
-        return code;
+        return smsService.send(phone);
+    }
+
+    /**
+     * 手机号首次登录自动建号：
+     * <ul>
+     *   <li>用户名冲突时追加随机后缀重试，避免 500；</li>
+     *   <li>并发下按手机号再查一次，命中则复用；</li>
+     *   <li>默认分配 PLAYER 角色，保证登录后路由/菜单有权限。</li>
+     * </ul>
+     */
+    private SysUser createPhoneUser(String phone) {
+        SysUser user = new SysUser();
+        user.setUsername("u" + phone);
+        user.setNickname("手机用户" + phone.substring(Math.max(0, phone.length() - 4)));
+        user.setPhone(phone);
+        user.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
+        user.setStatus(1);
+        try {
+            userMapper.insert(user);
+        } catch (org.springframework.dao.DuplicateKeyException dup) {
+            // 并发：别的请求刚建好同手机号账号
+            SysUser exist = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
+                    .eq(SysUser::getPhone, phone).eq(SysUser::getDeleted, 0).last("LIMIT 1"));
+            if (exist != null) return exist;
+            // 用户名被占用（非手机号用户），换一个不冲突的用户名重试
+            SysUser retry = new SysUser();
+            retry.setUsername("u" + phone + "_" + Integer.toHexString((int) (System.nanoTime() & 0xffff)));
+            retry.setNickname(user.getNickname());
+            retry.setPhone(phone);
+            retry.setPassword(user.getPassword());
+            retry.setStatus(1);
+            userMapper.insert(retry);
+            user = retry;
+        }
+        assignDefaultRole(user.getId(), "PLAYER");
+        log.info("手机号首次登录，自动注册 userId={} phone={}", user.getId(), phone);
+        return user;
+    }
+
+    /** 分配默认角色；角色码不存在时仅告警不阻断登录。 */
+    private void assignDefaultRole(Long userId, String roleCode) {
+        try {
+            var role = roleMapper.selectOne(Wrappers.<com.csp.platform.entity.SysRole>lambdaQuery()
+                    .eq(com.csp.platform.entity.SysRole::getCode, roleCode)
+                    .eq(com.csp.platform.entity.SysRole::getDeleted, 0).last("LIMIT 1"));
+            if (role == null) {
+                log.warn("默认角色 {} 不存在，跳过分配 userId={}", roleCode, userId);
+                return;
+            }
+            userRoleMapper.insert(new com.csp.platform.entity.SysUserRole(userId, role.getId()));
+        } catch (Exception e) {
+            log.warn("分配默认角色失败 userId={} role={} err={}", userId, roleCode, e.getMessage());
+        }
     }
 
     // ---------------- 刷新 ----------------
@@ -265,6 +305,22 @@ public class AuthService {
         boolean hasLetter = pwd.chars().anyMatch(Character::isLetter);
         boolean hasDigit = pwd.chars().anyMatch(Character::isDigit);
         if (!hasLetter || !hasDigit) throw BizException.of("密码需同时包含字母和数字");
+    }
+
+    // ---------------- 更新本人资料 ----------------
+
+    @Transactional
+    public void updateProfile(UpdateProfileCmd cmd) {
+        LoginUser ctx = UserContext.require();
+        SysUser update = new SysUser();
+        update.setId(ctx.getUserId());
+        if (cmd.getNickname() != null) update.setNickname(cmd.getNickname());
+        if (cmd.getRealName() != null) update.setRealName(cmd.getRealName());
+        if (cmd.getPhone() != null) update.setPhone(cmd.getPhone());
+        if (cmd.getEmail() != null) update.setEmail(cmd.getEmail());
+        update.setUpdatedBy(ctx.getUserId());
+        userMapper.updateById(update);
+        log.info("用户更新资料 userId={}", ctx.getUserId());
     }
 
     // ---------------- 内部工具 ----------------
@@ -426,25 +482,26 @@ public class AuthService {
         String key = "csp:wx:qr:" + state;
         Map<String, String> v = new java.util.LinkedHashMap<>();
         v.put("status", "WAITING");   // WAITING / SCANNED / CONFIRMED / EXPIRED
-        redisService.set(key, v, java.time.Duration.ofMinutes(5));
-        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        int ttlSeconds = wechatProps.getQrExpireSeconds() > 0 ? wechatProps.getQrExpireSeconds() : 300;
+        redisService.set(key, v, java.time.Duration.ofSeconds(ttlSeconds));
+Map<String, Object> out = new java.util.LinkedHashMap<>();
         out.put("state", state);
-        boolean real = !wechatAppId().isEmpty();
+        boolean real = wechatProps.isReal();
         if (real) {
             // 真实微信开放平台：扫码后微信回调 redirect_uri，由 /wechat/callback 承接
             out.put("qrContent", "https://open.weixin.qq.com/connect/qrconnect?appid="
-                    + wechatAppId() + "&scope=snsapi_login&state=" + state
-                    + "&redirect_uri=" + java.net.URLEncoder.encode(wechatRedirect(), java.nio.charset.StandardCharsets.UTF_8));
+                    + wechatProps.getAppId() + "&scope=snsapi_login&state=" + state
+                    + "&redirect_uri=" + java.net.URLEncoder.encode(wechatProps.getRedirectUri(), java.nio.charset.StandardCharsets.UTF_8));
         } else {
             // 演示模式：二维码直接编码平台自己的「扫码确认页」地址。
             // 手机扫码即打开可点击的确认页面，点确认后走 /wechat/callback → /wechat/exchange 完成登录，
             // 不再出现「扫出一串字符就打不开」的情况。
-            String base = wechatRedirect();
+            String base = wechatProps.getRedirectUri();
             if (base.endsWith("/login")) base = base.substring(0, base.length() - "/login".length());
             out.put("qrContent", base + "/qr-confirm?state=" + state);
         }
         out.put("mode", real ? "real" : "simulated");
-        out.put("expireSeconds", 300);
+        out.put("expireSeconds", ttlSeconds);
         out.put("status", "WAITING");
         return out;
     }
@@ -492,7 +549,7 @@ public class AuthService {
         Object raw = redisService.get(key);
         if (raw == null) throw new BizException(ResultCode.BAD_REQUEST, "二维码已过期，请重新获取");
 
-        String openid = "wx_" + code.trim();
+        String openid = wechatProps.isReal() ? exchangeWechatOpenId(code.trim()) : "wx_" + code.trim();
         SysUser user = resolveOrCreateThirdUser("wechat", openid);
         Map<String, String> v = new java.util.LinkedHashMap<>();
         v.put("status", "CONFIRMED");
@@ -577,6 +634,8 @@ public class AuthService {
             // SysUser 以 Integer status 表示账号状态（1=启用/2=锁定），无 locked 字段
             demo.setStatus(1);
             userMapper.insert(demo);
+            // 保证扫码演示账号有角色，避免登录后路由/菜单无权限
+            assignDefaultRole(demo.getId(), "PLAYER");
         }
         v.put("userId", String.valueOf(demo.getId()));
         redisService.set(key, v, java.time.Duration.ofMinutes(5));
@@ -611,10 +670,47 @@ public class AuthService {
     }
 
     private String wechatAppId() {
-        return System.getenv().getOrDefault("CSP_WX_APPID", "");
+        return wechatProps.getAppId() == null ? "" : wechatProps.getAppId().trim();
     }
 
     private String wechatRedirect() {
-        return System.getenv().getOrDefault("CSP_WX_REDIRECT", "http://127.0.0.1:11001/login");
+        String r = wechatProps.getRedirectUri();
+        return (r == null || r.isBlank()) ? "http://127.0.0.1:11001/login" : r.trim();
+    }
+
+    /**
+     * 用微信 OAuth code 换取 openid（真实模式）。
+     * 文档：https://developers.weixin.qq.com/doc/oplatform/Website_App/WeChat_Login/Wechat_Login.html
+     */
+    private String exchangeWechatOpenId(String code) {
+        try {
+            String url = "https://api.weixin.qq.com/sns/oauth2/access_token?appid="
+                    + java.net.URLEncoder.encode(wechatAppId(), java.nio.charset.StandardCharsets.UTF_8)
+                    + "&secret=" + java.net.URLEncoder.encode(wechatProps.getAppSecret(), java.nio.charset.StandardCharsets.UTF_8)
+                    + "&code=" + java.net.URLEncoder.encode(code, java.nio.charset.StandardCharsets.UTF_8)
+                    + "&grant_type=authorization_code";
+            java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
+                    .connectTimeout(java.time.Duration.ofSeconds(5)).build();
+            java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create(url)).timeout(java.time.Duration.ofSeconds(8)).GET().build();
+            java.net.http.HttpResponse<String> resp = client.send(req,
+                    java.net.http.HttpResponse.BodyHandlers.ofString(java.nio.charset.StandardCharsets.UTF_8));
+            if (resp.statusCode() < 200 || resp.statusCode() >= 300) {
+                throw new IllegalStateException("微信接口返回 " + resp.statusCode());
+            }
+            com.fasterxml.jackson.databind.JsonNode node = objectMapper.readTree(resp.body());
+            if (node.hasNonNull("errcode") && node.get("errcode").asInt() != 0) {
+                throw new IllegalStateException("微信错误 " + node.get("errcode").asInt()
+                        + ": " + node.path("errmsg").asText());
+            }
+            String openid = node.path("openid").asText("");
+            if (openid.isBlank()) throw new IllegalStateException("微信未返回 openid");
+            return openid;
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("[WECHAT] code 换 openid 失败：{}", e.getMessage());
+            throw new BizException(ResultCode.INTERNAL_ERROR, "微信授权失败，请稍后重试");
+        }
     }
 }

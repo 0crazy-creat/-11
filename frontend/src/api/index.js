@@ -18,7 +18,17 @@ export const authApi = {
   logout,
   register,
   me: getProfile,
-  profile: getProfile
+  profile: getProfile,
+  updateProfile: (data) => request.put('/auth/profile', data),
+  changePassword: (data) => request.post('/auth/password', data),
+  toggleMfa: (enabled) => request.post('/account/mfa', { enabled }),
+  verifyMfa: (code) => request.post('/account/mfa/verify', { code }),
+  emailCode: (email) => request.post('/account/email-code', null, { params: { email } }),
+  resetPassword: (data) => request.post('/account/reset-password', data),
+  forgotPassword: (data) => request.post('/account/forgot-password', data),
+  qrConfirmInfo: (state) => request.get('/auth/qr-confirm/info', { params: { state } }),
+  qrConfirm: (state) => request.post('/auth/qr-confirm/confirm', { state }),
+  refresh: (refreshToken) => request.post('/auth/refresh', { refreshToken })
 }
 
 // ===== 赛事 =====
@@ -35,7 +45,12 @@ export const contestApi = {
   create: createContest,
   update: updateContest,
   remove: removeContest,
-  join: joinContest
+  join: joinContest,
+  changeStatus: (id, data) => request.post(`/contests/${id}/status`, data),
+  getByCode: (code) => request.get(`/contests/code/${code}`),
+  bindQuestions: (id, data) => request.post(`/contests/${id}/questions`, data),
+  getQuestions: (id) => request.get(`/contests/${id}/questions`),
+  removeQuestion: (id, qid) => request.delete(`/contests/${id}/questions/${qid}`)
 }
 
 // ===== CTF 答题 =====
@@ -82,11 +97,21 @@ export const challengeApi = {
   create: createChallenge,
   update: updateChallenge,
   remove: removeChallenge,
-  submit: submitFlag
+  submit: submitFlag,
+  submitFlag: (data) => request.post('/ctf/submissions', data),
+  solved: (contestId) => request.get(`/ctf/contests/${contestId}/solved`),
+  mySubmissions: (contestId, params) => request.get(`/ctf/contests/${contestId}/submissions`, { params }),
+  adminList: (contestId, params) => request.get(`/ctf/contests/${contestId}/challenges`, { params }),
+  adminDetail: (contestId, challengeId) => request.get(`/ctf/contests/${contestId}/challenges/${challengeId}`),
+  adminCreate: (contestId, data) => request.post(`/ctf/contests/${contestId}/challenges`, data),
+  adminUpdate: (contestId, challengeId, data) => request.put(`/ctf/contests/${contestId}/challenges/${challengeId}`, data),
+  adminRemove: (contestId, challengeId) => request.delete(`/ctf/contests/${contestId}/challenges/${challengeId}`)
 }
 
 export const rankApi = {
-  list: (params) => getScoreboard(params?.contestId ?? params)
+  list: (params) => getScoreboard(params?.contestId ?? params),
+  myScore: (contestId) => request.get(`/ctf/contests/${contestId}/scoreboard/mine`),
+  refresh: (contestId) => request.post(`/ctf/contests/${contestId}/scoreboard/refresh`)
 }
 
 // ===== AWD =====
@@ -106,7 +131,14 @@ export const awdApi = {
   getTargets,
   getRounds: getAwdRounds,
   getAttacks: getAwdAttackLog,
-  listTeams: listAwdTeams
+  listTeams: listAwdTeams,
+  scoreLeaderboard: (params) => request.get('/awd/score/leaderboard', { params }),
+  scoreTeam: (params) => request.get('/awd/score/team', { params }),
+  scoreAttack: (data) => request.post('/awd/score/attack', data),
+  scorePatch: (data) => request.post('/awd/score/patch', data),
+  scoreRules: () => request.get('/awd/score/rules'),
+  scoreRegister: (data) => request.post('/awd/score/register', data),
+  scoreSettle: (data) => request.post('/awd/score/settle', data)
 }
 
 // ===== 战队 =====
@@ -118,7 +150,16 @@ export const teamApi = {
   // 赛事维度（ContestTeamController：/api/contests/{contestId}/teams）
   listByContest: (contestId, params) => request.get(`/contests/${contestId}/teams`, { params }),
   review: (contestId, teamId, status) => request.post(`/contests/${contestId}/teams/${teamId}/review`, null, { params: { status } }),
-  members: (contestId, teamId) => request.get(`/contests/${contestId}/teams/${teamId}/members`)
+  members: (contestId, teamId) => request.get(`/contests/${contestId}/teams/${teamId}/members`),
+  // CTF 赛事战队（CtfEnrollController：/api/ctf/contests/{contestId}/teams）
+  getMyTeam: (contestId) => request.get(`/ctf/contests/${contestId}/teams/mine`),
+  create: (contestId, data) => request.post(`/ctf/contests/${contestId}/teams`, data),
+  join: (contestId, data) => request.post(`/ctf/contests/${contestId}/teams/join`, data),
+  joinByCode: (contestId, data) => request.post(`/ctf/contests/${contestId}/teams/join-by-code`, data),
+  quit: (contestId) => request.delete(`/ctf/contests/${contestId}/teams/quit`),
+  generateInviteCode: (contestId, teamId) => request.post(`/ctf/contests/${contestId}/teams/${teamId}/invite-code`),
+  refreshInviteCode: (contestId, teamId) => request.put(`/ctf/contests/${contestId}/teams/${teamId}/invite-code`),
+  reviewCtf: (contestId, teamId, data) => request.post(`/ctf/contests/${contestId}/teams/${teamId}/review`, data)
 }
 
 // ===== 公告 =====
@@ -132,8 +173,69 @@ export const announceApi = {
 // ===== 用户 =====
 export const userApi = {
   page: (params) => request.get('/users', { params }),
+  detail: (id) => request.get(`/users/${id}`),
+  create: (data) => request.post('/users', data),
+  update: (id, data) => request.put(`/users/${id}`, data),
   updateStatus: (id, data) => request.put(`/users/${id}/status`, data),
-  remove: (id) => request.delete(`/users/${id}`)
+  remove: (id) => request.delete(`/users/${id}`),
+  getRoles: (id) => request.get(`/users/${id}/roles`),
+  resetPassword: (id, data) => request.post(`/users/${id}/password/reset`, data),
+  batchImport: (formData) => request.post('/users/batch/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  batchExport: (params) => request.get('/users/batch/export', { params, responseType: 'blob' })
+}
+
+// ===== 角色 =====
+export const roleApi = {
+  list: () => request.get('/roles'),
+  detail: (id) => request.get(`/roles/${id}`),
+  create: (data) => request.post('/roles', data),
+  update: (id, data) => request.put(`/roles/${id}`, data),
+  remove: (id) => request.delete(`/roles/${id}`),
+  permissions: () => request.get('/roles/permissions'),
+  assignPermissions: (id, data) => request.put(`/roles/${id}/permissions`, data)
+}
+
+// ===== 通知 =====
+export const notifyApi = {
+  my: (params) => request.get('/notify/my', { params }),
+  unreadCount: () => request.get('/notify/unread-count'),
+  inbox: (params) => request.get('/notify/inbox', { params }),
+  detail: (id) => request.get(`/notify/${id}`),
+  read: (ids) => request.post('/notify/read', { ids }),
+  readAll: () => request.post('/notify/read-all'),
+  send: (data) => request.post('/notify/send', data)
+}
+
+// ===== 题目库 =====
+export const questionApi = {
+  page: (params) => request.get('/questions', { params }),
+  detail: (id) => request.get(`/questions/${id}`),
+  create: (data) => request.post('/questions', data),
+  update: (id, data) => request.put(`/questions/${id}`, data),
+  remove: (id) => request.delete(`/questions/${id}`),
+  import: (data) => request.post('/questions/import', data)
+}
+
+// ===== 审计日志 =====
+export const auditApi = {
+  page: (params) => request.get('/audit-logs', { params }),
+  detail: (id) => request.get(`/audit-logs/${id}`)
+}
+
+// ===== 归档 =====
+export const archiveApi = {
+  create: (contestId) => request.post(`/archives/contest/${contestId}`),
+  page: (params) => request.get('/archives', { params }),
+  byContest: (contestId) => request.get(`/archives/contest/${contestId}`),
+  detail: (id) => request.get(`/archives/${id}`),
+  verify: (id) => request.get(`/archives/${id}/verify`)
+}
+
+// ===== 导出 =====
+export const exportApi = {
+  submissionsCsv: (params) => request.get('/export/submissions.csv', { params, responseType: 'blob' }),
+  submissionsXlsx: (params) => request.get('/export/submissions.xlsx', { params, responseType: 'blob' }),
+  writeupsCsv: (params) => request.get('/export/writeups.csv', { params, responseType: 'blob' })
 }
 
 // ===== 统计 =====
@@ -147,6 +249,18 @@ export const getSituationRanking = (params) => request.get('/situation/ranking',
 export const getTeamProfile = (teamId) => request.get(`/situation/teams/${teamId}`)
 export const get3DData = (params) => request.get('/situation/3d', { params })
 export const getTargetMonitor = (params) => request.get('/situation/monitor', { params })
+export const getFlylines = (contestId, params) => request.get(`/situation/${contestId}/flylines`, { params })
+export const getReplay = (contestId, params) => request.get(`/situation/${contestId}/replay`, { params })
+
+export const situationApi = {
+  overview: getSituationOverview,
+  ranking: getSituationRanking,
+  teamProfile: getTeamProfile,
+  data3d: get3DData,
+  monitor: getTargetMonitor,
+  flylines: getFlylines,
+  replay: getReplay
+}
 
 // ===== 手机号 / 扫码 / 第三方登录（需求 41 段）=====
 export const sendSmsCode = (phone) => request.post('/auth/sms-code', null, { params: { phone } })
@@ -168,6 +282,19 @@ export const startMyTarget = (contestId, questionId, roundNo) =>
   request.post('/awd/targets/mine/start', null, {
     params: { contestId, ...(questionId ? { questionId } : {}), ...(roundNo ? { roundNo } : {}) }
   })
+
+// ===== 练习模式 =====
+export const practiceApi = {
+  challenges: (params) => request.get('/practice/challenges', { params }),
+  challengeDetail: (id) => request.get(`/practice/challenges/${id}`),
+  categories: () => request.get('/practice/categories')
+}
+
+// ===== 理论赛 =====
+export const theoryApi = {
+  paper: (contestId) => request.get(`/ctf/contests/${contestId}/theory/paper`),
+  submit: (contestId, data) => request.post(`/ctf/contests/${contestId}/theory/submit`, data)
+}
 
 
 // ===== CTF 动态靶机（CtfTargetController：/ctf/contests/{cid}/targets/*）=====
@@ -265,4 +392,42 @@ export const scenarioApi = {
   precheckOne: precheckScenarioOne,
   dependencyTree: getScenarioDependencyTree,
   checkDependency: checkScenarioDependency
+}
+
+// ===== AWD 轮次控制（AwdRoundControlController）=====
+export const awdRoundApi = {
+  begin: (contestId, roundNo) => request.post(`/awd/rounds/${contestId}/${roundNo}/begin`),
+  running: (contestId, roundNo) => request.get(`/awd/rounds/${contestId}/${roundNo}/running`),
+  settle: (contestId, roundNo) => request.post(`/awd/rounds/${contestId}/${roundNo}/settle`),
+  control: (contestId, roundNo) => request.get(`/awd/rounds/${contestId}/${roundNo}/control`),
+  interrupt: (contestId, roundNo, data) => request.post(`/awd/rounds/${contestId}/${roundNo}/interrupt`, data),
+  resume: (contestId, roundNo) => request.post(`/awd/rounds/${contestId}/${roundNo}/resume`),
+  interruptStatus: (contestId, roundNo) => request.get(`/awd/rounds/${contestId}/${roundNo}/interrupt-status`),
+  dispute: (contestId, roundNo, data) => request.post(`/awd/rounds/${contestId}/${roundNo}/dispute`, data),
+  listDisputes: (contestId, roundNo) => request.get(`/awd/rounds/${contestId}/${roundNo}/dispute`),
+  arbitrate: (contestId, roundNo, data) => request.post(`/awd/rounds/${contestId}/${roundNo}/arbitrate`, data),
+  nextStates: (contestId, roundNo) => request.get(`/awd/rounds/${contestId}/${roundNo}/next-states`),
+  tick: () => request.post('/awd/rounds/tick')
+}
+
+// ===== 运维兼容层（OpsCompatController）=====
+export const opsApi = {
+  antiCheatEvents: (params) => request.get('/anti-cheat/events', { params }),
+  trafficAnalysis: (params) => request.get('/traffic/analysis', { params }),
+  theoryReport: (params) => request.get('/statistics/theory/report', { params }),
+  classReport: (params) => request.get('/statistics/class/report', { params }),
+  sla: (params) => request.get('/sla', { params }),
+  archiveContest: (contestId) => request.post(`/contests/${contestId}/archive`),
+  teacherStatus: () => request.get('/roles/teacher/status')
+}
+
+// ===== CTF 靶机管理（裁判端）=====
+export const ctfTargetAdminApi = {
+  list: (contestId, params) => request.get(`/ctf/contests/${contestId}/targets/admin/list`, { params }),
+  forceDestroy: (contestId, containerId) => request.post(`/ctf/contests/${contestId}/targets/admin/force-destroy/${containerId}`)
+}
+
+// ===== AWD 靶机续期 =====
+export const ctfTargetExtendApi = {
+  extend: (contestId, data) => request.post(`/ctf/contests/${contestId}/targets/extend`, data)
 }

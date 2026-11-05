@@ -8,6 +8,7 @@
         <el-menu-item index="/portal/awd"><el-icon><Monitor /></el-icon><span>AWD 比赛平台</span></el-menu-item>
         <el-menu-item index="/portal/practice"><el-icon><Reading /></el-icon><span>题目练习</span></el-menu-item>
         <el-menu-item index="/portal/ctf"><el-icon><Trophy /></el-icon><span>CTF 比赛</span></el-menu-item>
+        <el-menu-item index="/portal/my-team"><el-icon><UserFilled /></el-icon><span>战队管理</span></el-menu-item>
         <el-menu-item v-if="showPlayerEntry" index="/portal/my"><el-icon><Tickets /></el-icon><span>我的比赛</span></el-menu-item>
         <el-menu-item v-if="role !== 'OBSERVER'" index="/portal/writeups"><el-icon><Notebook /></el-icon><span>题解社区</span></el-menu-item>
         <!-- 态势感知入口 -->
@@ -30,7 +31,8 @@
             <span class="user csp-body">{{ user.profile?.nickname || user.profile?.username || '未登录' }}</span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item v-if="user.isAdmin || canManage" command="console">管理后台</el-dropdown-item>
+                <el-dropdown-item command="profile">个人信息</el-dropdown-item>
+                <el-dropdown-item v-if="user.isAdmin || canManage" command="console" divided>管理后台</el-dropdown-item>
                 <el-dropdown-item command="logout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -46,7 +48,7 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { DataLine, HomeFilled, Monitor, Notebook, Reading, Setting, Tickets, Bell, Trophy } from '@element-plus/icons-vue'
+import { DataLine, HomeFilled, Monitor, Notebook, Reading, Setting, Tickets, Bell, Trophy, UserFilled } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 import { roleOf, canDo, roleLabelOf } from '@/constants/contestType'
 
@@ -73,6 +75,8 @@ function onCommand(c) {
     router.push('/login')
   } else if (c === 'console') {
     router.push('/console')
+  } else if (c === 'profile') {
+    router.push('/portal/profile')
   }
 }
 </script>

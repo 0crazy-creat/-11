@@ -95,6 +95,17 @@ csp:
     rate-limit-per-minute: 300
     # 是否开启接口日志埋点
     access-log-enabled: true
+  # 微信开放平台扫码登录：appId/appSecret 任一为空则自动降级为演示模式
+  wechat:
+    app-id: ${CSP_WX_APPID:}
+    app-secret: ${CSP_WX_SECRET:}
+    redirect-uri: ${CSP_WX_REDIRECT:http://127.0.0.1:11001/login}
+    qr-expire-seconds: 300
+  # 通知渠道：短信网关（真实短信下发，未配置则走本地演示模式）
+  notify:
+    sms-enabled: ${CSP_SMS_ENABLED:false}
+    sms-gateway: ${CSP_SMS_GATEWAY:}
+    sms-token: ${CSP_SMS_TOKEN:}
 
 management:
   endpoints:

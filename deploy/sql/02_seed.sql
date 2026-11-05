@@ -49,7 +49,7 @@ INSERT IGNORE INTO sys_role_permission (role_id, permission_id) VALUES (5,1105);
 
 -- 默认管理员 admin / Admin@123
 INSERT INTO sys_user (id, username, password, nickname, real_name, status) VALUES
- (1000000000000000001,'admin','$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi','超级管理员','系统管理员',1)
+ (1000000000000000001,'admin','$2b$10$kygISDtIDLGp6f14nTjbE.SVb5whcgr9G0kOD/znV0AziY1JQFQYG','超级管理员','系统管理员',1)
 ON DUPLICATE KEY UPDATE nickname=VALUES(nickname);
 
 INSERT IGNORE INTO sys_user_role (user_id, role_id) VALUES (1000000000000000001, 1);

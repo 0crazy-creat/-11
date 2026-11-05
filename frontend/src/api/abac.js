@@ -58,8 +58,28 @@ export function deletePolicy(id) {
  */
 export function testPolicy(data) {
   return request({
-    url: '/admin/abac/test',
+    url: '/admin/abac/policies/test',
     method: 'post',
     data
+  });
+}
+
+/**
+ * 查询所有启用的策略
+ */
+export function getEnabledPolicies() {
+  return request({
+    url: '/admin/abac/policies/enabled',
+    method: 'get'
+  });
+}
+
+/**
+ * 启用/禁用策略
+ */
+export function togglePolicy(id) {
+  return request({
+    url: `/admin/abac/policies/${id}/toggle`,
+    method: 'put'
   });
 }
