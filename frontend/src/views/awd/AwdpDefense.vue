@@ -118,15 +118,15 @@ async function onSubmit() {
   submitting.value = true
   uploadPercent.value = 0
   try {
-    const { data } = await defenseApi.submit(fd, (evt) => {
+    // 响应拦截器已解包 Result<T>，拿到的是 DefenseSubmitResult 本体
+    const res = await defenseApi.submit(fd, (evt) => {
       if (evt.total) uploadPercent.value = Math.round((evt.loaded / evt.total) * 100)
     })
-    lastResult.value = data
-    const ok = data.status === 'VERIFIED'
-    ElMessage[ok ? 'success' : 'warning'](data.message || '处理完成')
+    lastResult.value = res
+    ElMessage[res.status === 'VERIFIED' ? 'success' : 'warning'](res.message || '处理完成')
     await loadMine()
   } catch (e) {
-    ElMessage.error(e?.response?.data?.message || '上传失败')
+    ElMessage.error(e.message || '上传失败')
   } finally {
     submitting.value = false
   }
@@ -135,15 +135,14 @@ async function onSubmit() {
 async function loadMine() {
   if (!form.contestId) return
   try {
-    const { data } = await defenseApi.listMine(form.contestId)
-    mine.value = data || []
+    mine.value = (await defenseApi.listMine(form.contestId)) || []
   } catch (e) { /* ignore */ }
 }
 
 async function showDetail(id) {
   try {
-    const { data } = await defenseApi.detail(id)
-    ElMessage.info(`状态 ${data.status}，防御分 ${data.defenseScore}`)
+    const d = await defenseApi.detail(id)
+    ElMessage.info(`状态 ${d?.status}，防御分 ${d?.defenseScore}`)
   } catch (e) { /* ignore */ }
 }
 

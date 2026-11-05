@@ -21,7 +21,7 @@ const portalRoutes = [
   { path: 'writeups', name: 'portal-writeups', component: () => import('@/views/portal/WriteupCommunity.vue'), meta: { title: '题解社区' } },
   { path: 'contest/:contestId', name: 'portal-play', component: () => import('@/views/portal/PlayArena.vue'), props: true, meta: { title: '赛事答题' } },
   // 六赛制统一入口：注册表 route 全量落地
-  { path: 'theory/:contestId', name: 'portal-theory', component: () => import('@/views/portal/PlayArena.vue'), props: true, meta: { title: '理论赛' } },
+  { path: 'theory/:contestId', name: 'portal-theory', component: () => import('@/views/portal/TheoryArena.vue'), props: true, meta: { title: '理论赛' } },
   { path: 'scenario/:contestId', name: 'portal-scenario', component: () => import('@/views/portal/ScenarioArena.vue'), props: true, meta: { title: '场景实操赛' } },
   { path: 'cfs/:contestId', name: 'portal-cfs', component: () => import('@/views/portal/CfsArena.vue'), props: true, meta: { title: 'CFS 场景化渗透' } },
   { path: 'awd/:contestId', name: 'portal-awd', component: () => import('@/views/awd/AwdArena.vue'), props: true, meta: { title: 'AWD 攻防赛' } },
@@ -39,6 +39,11 @@ const consoleRoutes = [
   { path: 'users', name: 'admin-users', component: () => import('@/views/console/UserList.vue'), meta: { title: '用户管理', perm: 'user:manage' } },
   { path: 'announcements', name: 'admin-announcements', component: () => import('@/views/console/Announcement.vue'), meta: { title: '公告管理', perm: 'announcement:manage' } },
   { path: 'writeups', name: 'admin-writeups', component: () => import('@/views/console/WriteupReview.vue'), meta: { title: '题解审核', perm: 'writeup:review' } },
+  { path: 'archives', name: 'admin-archives', component: () => import('@/views/console/ArchiveManage.vue'), meta: { title: '赛事归档', perm: 'contest:archive' } },
+  { path: 'cfs-topologies', name: 'admin-cfs-topologies', component: () => import('@/views/console/CfsTopologyManage.vue'), meta: { title: 'CFS 拓扑管理', perm: 'contest:update' } },
+  { path: 'statistics', name: 'admin-statistics', component: () => import('@/views/console/StatisticsReport.vue'), meta: { title: '统计报表', perm: 'contest:view' } },
+  { path: 'lvp', name: 'admin-lvp', component: () => import('@/views/console/LvpVmManage.vue'), meta: { title: 'LVP 虚拟机', perm: 'contest:view' } },
+  { path: 'mqtt', name: 'admin-mqtt', component: () => import('@/views/console/MqttManage.vue'), meta: { title: 'MQTT 消息总线', perm: 'contest:view' } },
   { path: 'audit', name: 'admin-audit', component: () => import('@/views/console/AuditLog.vue'), meta: { title: '审计日志', perm: 'audit:view' } },
   // Phase 1 新增路由
   { path: 'abac', name: 'admin-abac', component: () => import('@/views/admin/AbacPolicyManagement.vue'), meta: { title: 'ABAC 策略管理', perm: 'abac:view' } },

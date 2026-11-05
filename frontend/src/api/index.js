@@ -236,7 +236,8 @@ export const auditApi = {
 
 // ===== 归档 =====
 export const archiveApi = {
-  create: (contestId) => request.post(`/archives/contest/${contestId}`),
+  // 后端 ArchiveCmd 要求 filingNo 必填，必须带 body，否则 400
+  create: (contestId, data) => request.post(`/archives/contest/${contestId}`, data),
   page: (params) => request.get('/archives', { params }),
   byContest: (contestId) => request.get(`/archives/contest/${contestId}`),
   detail: (id) => request.get(`/archives/${id}`),
@@ -335,7 +336,10 @@ export const getCfsTopology = (contestId) => request.get(`/cfs/contests/${contes
 export const submitCfsFlag = (data) => request.post('/cfs/submissions', data)
 export const getCfsInstance = (contestId) => request.get(`/cfs/contests/${contestId}/instance`)
 export const createCfsTopology = (data) => request.post('/cfs/admin/topologies', data)
+export const listCfsTopologies = (params) => request.get('/cfs/admin/topologies', { params })
 export const getCfsTopologyDef = (id) => request.get(`/cfs/admin/topologies/${id}`)
+export const getCfsTopologyLayers = (id) => request.get(`/cfs/admin/topologies/${id}/layers`)
+export const getCfsTopologyNodes = (id) => request.get(`/cfs/admin/topologies/${id}/nodes`)
 export const publishCfsTopology = (id) => request.post(`/cfs/admin/topologies/${id}/publish`)
 export const startCfsContest = (contestId) => request.post(`/cfs/admin/contests/${contestId}/start`)
 
@@ -344,7 +348,10 @@ export const cfsApi = {
   submit: submitCfsFlag,
   instance: getCfsInstance,
   createTopology: createCfsTopology,
+  listTopologies: listCfsTopologies,
   topologyDef: getCfsTopologyDef,
+  topologyLayers: getCfsTopologyLayers,
+  topologyNodes: getCfsTopologyNodes,
   publish: publishCfsTopology,
   start: startCfsContest
 }
@@ -402,6 +409,51 @@ export const scenarioApi = {
   precheckOne: precheckScenarioOne,
   dependencyTree: getScenarioDependencyTree,
   checkDependency: checkScenarioDependency
+}
+
+// ===== LVP 轻量虚拟化（LvpController：/api/lvp/vms）=====
+// 注意：后端为内存实现，服务重启后实例清空；生产可对接 docker-java / libvirt
+export const lvpApi = {
+  list: () => request.get('/lvp/vms'),
+  detail: (id) => request.get(`/lvp/vms/${id}`),
+  create: (data) => request.post('/lvp/vms', data),
+  start: (id) => request.post(`/lvp/vms/${id}/start`),
+  stop: (id) => request.post(`/lvp/vms/${id}/stop`),
+  snapshot: (id, tag) => request.post(`/lvp/vms/${id}/snapshot`, null, { params: tag ? { tag } : {} }),
+  destroy: (id) => request.delete(`/lvp/vms/${id}`),
+  summary: () => request.get('/lvp/vms/summary')
+}
+
+// ===== MQTT 消息总线（MqttController：/api/mqtt）=====
+// 注意：后端未配置 broker 时使用本地内存总线，重启即清空
+export const mqttApi = {
+  status: () => request.get('/mqtt/status'),
+  messages: (topic, limit = 20) => request.get('/mqtt/messages', { params: { topic, limit } }),
+  publish: (topic, payload, qos = 0) =>
+    request.post('/mqtt/publish', payload ?? '', {
+      params: { topic, qos },
+      headers: { 'Content-Type': 'text/plain' }
+    })
+}
+
+// ===== 集群与 SLA（ClusterController：/api/cluster）=====
+// 节点信息为内存态：多实例部署时各节点调用 heartbeat 上报，30s 无心跳判定不健康
+export const clusterApi = {
+  overview: () => request.get('/cluster/overview'),
+  sla: () => request.get('/cluster/sla'),
+  heartbeat: (params) => request.post('/cluster/heartbeat', null, { params }),
+  sample: (params) => request.post('/cluster/sample', null, { params })
+}
+
+// ===== SSO / LDAP（SsoController：/api/sso）=====
+// LDAP 登录走 /sso/ldap/login（query 参数），LDAP 未配置时 status.configured=false
+export const ssoApi = {
+  ldapStatus: () => request.get('/sso/ldap/status'),
+  ldapLogin: (username, password) =>
+    request.post('/sso/ldap/login', null, { params: { username, password } }),
+  issueTicket: (username) => request.get('/sso/ticket/issue', { params: { username } }),
+  validateTicket: (ticket, provider) =>
+    request.post('/sso/ticket/validate', null, { params: { ticket, ...(provider ? { provider } : {}) } })
 }
 
 // ===== AWD 轮次控制（AwdRoundControlController）=====

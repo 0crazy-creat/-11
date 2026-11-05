@@ -33,6 +33,13 @@ public class CfsAdminController {
         return Result.ok(topologyService.create(cmd));
     }
 
+    @Operation(summary = "拓扑列表（可按赛事过滤）")
+    @RequirePermission("contest:view")
+    @GetMapping("/topologies")
+    public Result<List<CfsTopology>> list(@RequestParam(required = false) Long contestId) {
+        return Result.ok(topologyService.listByContest(contestId));
+    }
+
     @Operation(summary = "拓扑详情")
     @RequirePermission("contest:view")
     @GetMapping("/topologies/{id}")

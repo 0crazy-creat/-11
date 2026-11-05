@@ -98,6 +98,17 @@ public class CfsTopologyService {
         return list.isEmpty() ? null : list.get(0);
     }
 
+    /** 拓扑列表（管理端）：contestId 为空返回全部，否则按赛事过滤。 */
+    public List<CfsTopology> listByContest(Long contestId) {
+        LambdaQueryWrapper<CfsTopology> w = new LambdaQueryWrapper<CfsTopology>()
+                .eq(CfsTopology::getDeleted, 0)
+                .orderByDesc(CfsTopology::getCreatedAt);
+        if (contestId != null) {
+            w.eq(CfsTopology::getContestId, contestId);
+        }
+        return topologyMapper.selectList(w);
+    }
+
     public List<CfsLayer> layers(Long topologyId) {
         return layerMapper.selectList(new LambdaQueryWrapper<CfsLayer>()
                 .eq(CfsLayer::getTopologyId, topologyId)
