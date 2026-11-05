@@ -50,6 +50,11 @@ public class AntiCheatAnalysisService {
             log.debug("设备ID为空，跳过指纹记录");
             return;
         }
+        // fingerprint 列是 json NOT NULL：调用方未提供时必须兜底为合法 JSON，
+        // 否则 INSERT 抛 SQLException，会把所在业务事务（如理论赛判分）一起拖垮。
+        if (fingerprint == null || fingerprint.isBlank()) {
+            fingerprint = "{}";
+        }
 
         DeviceFingerprint existing = fingerprintMapper.selectOne(new LambdaQueryWrapper<DeviceFingerprint>()
                 .eq(DeviceFingerprint::getDeviceId, deviceId)

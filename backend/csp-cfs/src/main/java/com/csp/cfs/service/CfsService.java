@@ -261,12 +261,17 @@ public class CfsService {
 
     /** 当前队伍的 CFS 拓扑视图：逐层标注解锁状态与节点可达性。 */
     public CfsTopologyVO topologyView(Long contestId, Long userId) {
-        Contest contest = contestGuard.requireContest(contestId);
+        boolean privileged = isPrivileged();
+        // 选手视角必须已开赛：否则报名阶段就会触发 ensureInstance 拉起靶机、占用端口。
+        // 管理员/裁判保留预览能力（用于赛前配置核对），仍用 requireContest。
+        Contest contest = privileged
+                ? contestGuard.requireContest(contestId)
+                : contestGuard.requireAnswering(contestId);
         requireCfs(contest);
         ContestTeam team = currentTeam(userId, contestId);
         if (team == null) {
             // 管理员/裁判/教师免报名：以该赛第一支队伍视角预览拓扑（不影响其真实成绩）
-            if (!isPrivileged()) {
+            if (!privileged) {
                 throw new BizException(ResultCode.FORBIDDEN, "未报名该赛事");
             }
             team = firstTeamOf(contestId);
