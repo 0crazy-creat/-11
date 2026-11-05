@@ -13,7 +13,7 @@
       </div>
     </el-card>
 
-    <el-empty v-if="!loading && !topology" description="尚未报名该赛事或赛事未配置分层拓扑" />
+    <el-empty v-if="!loading && !topology" :description="loadError || '尚未报名该赛事或赛事未配置分层拓扑'" />
 
     <div v-loading="loading" class="layers">
       <div
@@ -104,6 +104,8 @@ const contestId = route.params.contestId || route.query.contestId
 
 const loading = ref(false)
 const topology = ref(null)
+/** 拓扑加载失败的真实原因（未开赛 / 未报名 / 未配置拓扑），用于空态直接展示，避免笼统文案误导选手 */
+const loadError = ref('')
 const flags = reactive({})
 const submitting = reactive({})
 
@@ -112,9 +114,11 @@ async function load() {
   loading.value = true
   try {
     topology.value = await cfsApi.topology(contestId)
+    loadError.value = ''
   } catch (e) {
     topology.value = null
-    ElMessage.error(e?.response?.data?.message || '加载 CFS 拓扑失败')
+    // 空态已展示具体原因，这里不再弹 ElMessage，避免同一条错误出现两次
+    loadError.value = e?.response?.data?.message || '加载 CFS 拓扑失败'
   } finally {
     loading.value = false
   }
