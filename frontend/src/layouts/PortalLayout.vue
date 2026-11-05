@@ -11,6 +11,7 @@
         <el-menu-item index="/portal/my-team"><el-icon><UserFilled /></el-icon><span>战队管理</span></el-menu-item>
         <el-menu-item v-if="showPlayerEntry" index="/portal/my"><el-icon><Tickets /></el-icon><span>我的比赛</span></el-menu-item>
         <el-menu-item v-if="role !== 'OBSERVER'" index="/portal/writeups"><el-icon><Notebook /></el-icon><span>题解社区</span></el-menu-item>
+        <el-menu-item index="/portal/notifications"><el-icon><Message /></el-icon><span>消息通知</span></el-menu-item>
         <!-- 态势感知入口 -->
         <el-menu-item v-if="canViewScreen" index="/situation"><el-icon><DataLine /></el-icon><span>态势感知</span></el-menu-item>
       </el-menu>
@@ -25,6 +26,7 @@
       <el-header class="header">
         <span class="csp-h3 page-title">{{ $route.meta.title || '赛事大厅' }}</span>
         <div class="right">
+          <NotificationBell />
           <el-tag v-if="role" size="small" effect="light" :type="roleTagType">{{ roleLabel }}</el-tag>
           <el-tag v-if="user.roles.length" size="small" effect="plain">{{ user.roles.join(' / ') }}</el-tag>
           <el-dropdown @command="onCommand">
@@ -48,9 +50,10 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { DataLine, HomeFilled, Monitor, Notebook, Reading, Setting, Tickets, Bell, Trophy, UserFilled } from '@element-plus/icons-vue'
+import { DataLine, HomeFilled, Message, Monitor, Notebook, Reading, Setting, Tickets, Bell, Trophy, UserFilled } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 import { roleOf, canDo, roleLabelOf } from '@/constants/contestType'
+import NotificationBell from '@/components/NotificationBell.vue'
 
 const user = useUserStore()
 const router = useRouter()

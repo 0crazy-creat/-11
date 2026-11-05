@@ -19,6 +19,7 @@ const portalRoutes = [
   { path: 'profile', name: 'portal-profile', component: () => import('@/views/portal/Profile.vue'), meta: { title: '个人信息' } },
   { path: 'my', name: 'portal-my', component: () => import('@/views/portal/MyContests.vue'), meta: { title: '我的比赛' } },
   { path: 'writeups', name: 'portal-writeups', component: () => import('@/views/portal/WriteupCommunity.vue'), meta: { title: '题解社区' } },
+  { path: 'notifications', name: 'portal-notifications', component: () => import('@/views/portal/Notifications.vue'), meta: { title: '消息通知' } },
   { path: 'contest/:contestId', name: 'portal-play', component: () => import('@/views/portal/PlayArena.vue'), props: true, meta: { title: '赛事答题' } },
   // 六赛制统一入口：注册表 route 全量落地
   { path: 'theory/:contestId', name: 'portal-theory', component: () => import('@/views/portal/PlayArena.vue'), props: true, meta: { title: '理论赛' } },
@@ -39,6 +40,7 @@ const consoleRoutes = [
   { path: 'users', name: 'admin-users', component: () => import('@/views/console/UserList.vue'), meta: { title: '用户管理', perm: 'user:manage' } },
   { path: 'announcements', name: 'admin-announcements', component: () => import('@/views/console/Announcement.vue'), meta: { title: '公告管理', perm: 'announcement:manage' } },
   { path: 'audit', name: 'admin-audit', component: () => import('@/views/console/AuditLog.vue'), meta: { title: '审计日志', perm: 'audit:view' } },
+  { path: 'notifications', name: 'admin-notifications', component: () => import('@/views/console/NotificationManage.vue'), meta: { title: '通知管理', perm: 'announcement:manage' } },
   // Phase 1 新增路由
   { path: 'abac', name: 'admin-abac', component: () => import('@/views/admin/AbacPolicyManagement.vue'), meta: { title: 'ABAC 策略管理', perm: 'abac:view' } },
   { path: 'anti-cheat/:contestId', name: 'admin-anti-cheat', component: () => import('@/views/admin/AntiCheatDashboard.vue'), props: true, meta: { title: '反作弊监控', perm: 'contest:control' } }

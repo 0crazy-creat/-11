@@ -44,8 +44,8 @@
               </div>
             </div>
             <div class="challenge-footer">
-              <el-button type="primary" size="small" @click="openChallenge(challenge)" :disabled="!challenge.containerReady">
-                {{ challenge.containerReady ? '开始答题' : '容器未就绪' }}
+              <el-button type="primary" size="small" @click="openChallenge(challenge)">
+                开始答题
               </el-button>
               <el-button size="small" @click="showWriteup(challenge)">查看题解</el-button>
             </div>

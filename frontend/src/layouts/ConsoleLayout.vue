@@ -9,6 +9,7 @@
         <el-menu-item v-if="can('team:manage')" index="/console/teams"><el-icon><User /></el-icon><span>战队管理</span></el-menu-item>
         <el-menu-item v-if="can('user:manage')" index="/console/users"><el-icon><Avatar /></el-icon><span>用户管理</span></el-menu-item>
         <el-menu-item v-if="can('announcement:manage')" index="/console/announcements"><el-icon><Bell /></el-icon><span>公告管理</span></el-menu-item>
+        <el-menu-item v-if="can('announcement:manage')" index="/console/notifications"><el-icon><Message /></el-icon><span>通知管理</span></el-menu-item>
         <el-menu-item v-if="can('audit:view')" index="/console/audit"><el-icon><Document /></el-icon><span>审计日志</span></el-menu-item>
       </el-menu>
       <div class="aside-foot">
@@ -21,6 +22,7 @@
       <el-header class="header">
         <span class="csp-h3 page-title">{{ $route.meta.title || '控制台' }}</span>
         <div class="right">
+          <NotificationBell />
           <el-dropdown @command="onCommand">
             <span class="user csp-body">{{ user.profile?.nickname || user.profile?.username || '未登录' }}</span>
             <template #dropdown>
@@ -39,8 +41,9 @@
 <script setup>
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Avatar, Back, Bell, Document, Flag, Odometer, Trophy, User } from '@element-plus/icons-vue'
+import { Avatar, Back, Bell, Document, Flag, Message, Odometer, Trophy, User } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
+import NotificationBell from '@/components/NotificationBell.vue'
 
 const user = useUserStore()
 const perms = (() => {

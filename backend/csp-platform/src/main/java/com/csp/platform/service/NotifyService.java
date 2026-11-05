@@ -76,7 +76,7 @@ public class NotifyService {
                 .and(x -> x.eq(NotifyMessage::getUserId, uid).or().isNull(NotifyMessage::getUserId)));
     }
 
-    /** 批量标记已读：仅允许操作自己的通知，防止越权。 */
+    /** 批量标记已读：自己的 + 广播（广播 userId 为 null，必须一并匹配，否则永远无法置读）。 */
     @Transactional
     public int markRead(List<Long> ids) {
         Long uid = UserContext.requireUserId();
@@ -84,17 +84,17 @@ public class NotifyService {
         return notifyMapper.update(null, new LambdaUpdateWrapper<NotifyMessage>()
                 .set(NotifyMessage::getReadFlag, 1)
                 .in(NotifyMessage::getId, ids)
-                .eq(NotifyMessage::getUserId, uid));
+                .and(x -> x.eq(NotifyMessage::getUserId, uid).or().isNull(NotifyMessage::getUserId)));
     }
 
-    /** 全部标记已读（仅本人）。 */
+    /** 全部标记已读：自己的 + 广播。 */
     @Transactional
     public int markAllRead() {
         Long uid = UserContext.requireUserId();
         return notifyMapper.update(null, new LambdaUpdateWrapper<NotifyMessage>()
                 .set(NotifyMessage::getReadFlag, 1)
-                .eq(NotifyMessage::getUserId, uid)
-                .eq(NotifyMessage::getReadFlag, 0));
+                .eq(NotifyMessage::getReadFlag, 0)
+                .and(x -> x.eq(NotifyMessage::getUserId, uid).or().isNull(NotifyMessage::getUserId)));
     }
 
     public NotifyMessage get(Long id) {
