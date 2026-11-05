@@ -27,6 +27,8 @@ public class ContestTeam implements Serializable {
     private Long id;
 
     private Long contestId;
+    /** 关联的全局战队；个人参赛为 null */
+    private Long teamId;
     private String name;
     private String code;
     private String logo;

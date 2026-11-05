@@ -113,10 +113,8 @@ public class RoleService {
                 .eq(SysUserRole::getRoleId, id));
         if (bound != null && bound > 0) throw BizException.of("该角色下仍有用户，无法删除");
 
-        SysRole upd = new SysRole();
-        upd.setId(id);
-        upd.setDeleted(1);
-        roleMapper.updateById(upd);
+        // MyBatis-Plus 的 updateById 会忽略逻辑删除字段，只能用 deleteById 触发逻辑删除
+        roleMapper.deleteById(id);
         rolePermissionMapper.delete(Wrappers.<SysRolePermission>lambdaQuery()
                 .eq(SysRolePermission::getRoleId, id));
         log.info("删除角色 id={}", id);

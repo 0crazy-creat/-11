@@ -1,23 +1,19 @@
 package com.csp.ctf.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
-/** 战队报名请求。 */
+/** 全局战队资料创建/更新入参。 */
 @Data
-public class TeamCreateRequest {
-    @NotNull(message = "赛事ID不能为空")
-    private Long contestId;
-
+public class TeamProfileCmd {
     @NotBlank(message = "战队名不能为空")
     @Size(max = 128, message = "战队名过长")
     private String name;
-
-    @Size(max = 64, message = "战队编码过长")
-    private String code;
-
+    @Size(max = 512)
     private String logo;
-    private String orgCode;
+    private String description;
+    @Size(max = 255)
+    private String slogan;
+    private Integer maxMembers;
 }

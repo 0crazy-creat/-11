@@ -6,7 +6,11 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.csp.common.api.PageResult;
 import com.csp.common.api.ResultCode;
 import com.csp.common.exception.BizException;
+import com.csp.platform.entity.ContestInfo;
+import com.csp.platform.entity.Question;
 import com.csp.platform.entity.Writeup;
+import com.csp.platform.mapper.ContestInfoMapper;
+import com.csp.platform.mapper.QuestionMapper;
 import com.csp.platform.mapper.WriteupMapper;
 import com.csp.security.core.UserContext;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +18,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /** 题解（Writeup）：提交、审核、公开浏览、点赞。 */
 @Service
@@ -22,6 +32,8 @@ import java.util.List;
 public class WriteupService {
 
     private final WriteupMapper writeupMapper;
+    private final QuestionMapper questionMapper;
+    private final ContestInfoMapper contestInfoMapper;
 
     /** 提交题解（进入待审核）。 */
     @Transactional
@@ -75,7 +87,26 @@ public class WriteupService {
         LambdaQueryWrapper<Writeup> w = new LambdaQueryWrapper<>();
         if (status != null && !status.isBlank()) w.eq(Writeup::getStatus, status);
         w.orderByAsc(Writeup::getCreatedAt);
-        return PageResult.of(writeupMapper.selectPage(new Page<>(page, size), w));
+        Page<Writeup> p = writeupMapper.selectPage(new Page<>(page, size), w);
+        fillNames(p.getRecords());
+        return PageResult.of(p);
+    }
+
+    /** 批量补全题目名、赛事名，避免前端展示裸 ID。 */
+    private void fillNames(List<Writeup> list) {
+        if (list == null || list.isEmpty()) return;
+        Set<Long> qids = list.stream().map(Writeup::getQuestionId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<Long> cids = list.stream().map(Writeup::getContestId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, String> qMap = qids.isEmpty() ? Collections.emptyMap()
+                : questionMapper.selectBatchIds(qids).stream()
+                    .collect(Collectors.toMap(Question::getId, Question::getTitle, (a, b) -> a));
+        Map<Long, String> cMap = cids.isEmpty() ? Collections.emptyMap()
+                : contestInfoMapper.selectBatchIds(cids).stream()
+                    .collect(Collectors.toMap(ContestInfo::getId, ContestInfo::getName, (a, b) -> a));
+        for (Writeup w : list) {
+            w.setQuestionTitle(qMap.get(w.getQuestionId()));
+            w.setContestName(cMap.get(w.getContestId()));
+        }
     }
 
     /** 审核：通过 / 拒绝。 */
@@ -104,6 +135,7 @@ public class WriteupService {
         if (!"APPROVED".equals(w.getStatus()) && !isAuthor) {
             throw new BizException(ResultCode.NOT_FOUND, "题解不存在或未公开");
         }
+        fillNames(List.of(w));
         // 浏览量 +1
         writeupMapper.update(null, new LambdaUpdateWrapper<Writeup>()
                 .eq(Writeup::getId, id).setSql("view_count = view_count + 1"));

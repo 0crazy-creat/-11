@@ -6,7 +6,7 @@
         <span class="meta">{{ contest.startTime }} ~ {{ contest.endTime }}</span>
       </template>
       <template #extra>
-        <el-button type="primary" @click="$router.push(`/play/${contestId}`)">进入答题</el-button>
+                <el-button type="primary" @click="$router.push(`/play/${contestId}`)">进入答题</el-button>
         <el-button @click="$router.push(`/rank/${contestId}`)">排行榜</el-button>
         <el-button @click="$router.push(`/situation/${contestId}`)">态势大屏</el-button>
       </template>
@@ -18,6 +18,11 @@
           <el-descriptions :column="2" size="small" border>
             <el-descriptions-item label="编码">{{ contest.code }}</el-descriptions-item>
             <el-descriptions-item label="类型">{{ contest.type }}</el-descriptions-item>
+            <el-descriptions-item label="模式">
+              <el-tag size="small" :type="contest.mode === 'INDIVIDUAL' ? 'primary' : 'success'">
+                {{ contest.mode === 'INDIVIDUAL' ? '个人赛' : '团队赛' }}
+              </el-tag>
+            </el-descriptions-item>
             <el-descriptions-item label="开始">{{ contest.startTime }}</el-descriptions-item>
             <el-descriptions-item label="结束">{{ contest.endTime }}</el-descriptions-item>
             <el-descriptions-item label="描述" :span="2">{{ contest.description }}</el-descriptions-item>
@@ -44,6 +49,7 @@
         <el-table-column prop="solvedCount" label="解出" width="90" />
       </el-table>
     </el-card>
+
   </div>
 </template>
 

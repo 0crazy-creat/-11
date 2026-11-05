@@ -15,7 +15,7 @@ const portalRoutes = [
   { path: 'awd', name: 'portal-awd-list', component: () => import('@/views/portal/AwdContestList.vue'), meta: { title: 'AWD 比赛平台' } },
   { path: 'practice', name: 'portal-practice', component: () => import('@/views/practice/ChallengePractice.vue'), meta: { title: '题目练习' } },
   { path: 'ctf', name: 'portal-ctf-list', component: () => import('@/views/portal/CtfContestList.vue'), meta: { title: 'CTF 比赛' } },
-  { path: 'my-team', name: 'portal-my-team', component: () => import('@/views/portal/MyTeam.vue'), meta: { title: '战队管理' } },
+  { path: 'my-team', name: 'portal-my-team', component: () => import('@/views/portal/TeamCenter.vue'), meta: { title: '战队管理' } },
   { path: 'profile', name: 'portal-profile', component: () => import('@/views/portal/Profile.vue'), meta: { title: '个人信息' } },
   { path: 'my', name: 'portal-my', component: () => import('@/views/portal/MyContests.vue'), meta: { title: '我的比赛' } },
   { path: 'writeups', name: 'portal-writeups', component: () => import('@/views/portal/WriteupCommunity.vue'), meta: { title: '题解社区' } },
@@ -38,6 +38,7 @@ const consoleRoutes = [
   { path: 'teams', name: 'admin-teams', component: () => import('@/views/contest/TeamList.vue'), meta: { title: '战队管理', perm: 'team:manage' } },
   { path: 'users', name: 'admin-users', component: () => import('@/views/console/UserList.vue'), meta: { title: '用户管理', perm: 'user:manage' } },
   { path: 'announcements', name: 'admin-announcements', component: () => import('@/views/console/Announcement.vue'), meta: { title: '公告管理', perm: 'announcement:manage' } },
+  { path: 'writeups', name: 'admin-writeups', component: () => import('@/views/console/WriteupReview.vue'), meta: { title: '题解审核', perm: 'writeup:review' } },
   { path: 'audit', name: 'admin-audit', component: () => import('@/views/console/AuditLog.vue'), meta: { title: '审计日志', perm: 'audit:view' } },
   // Phase 1 新增路由
   { path: 'abac', name: 'admin-abac', component: () => import('@/views/admin/AbacPolicyManagement.vue'), meta: { title: 'ABAC 策略管理', perm: 'abac:view' } },

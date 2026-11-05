@@ -101,11 +101,33 @@ csp:
     app-secret: ${CSP_WX_SECRET:}
     redirect-uri: ${CSP_WX_REDIRECT:http://127.0.0.1:11001/login}
     qr-expire-seconds: 300
-  # 通知渠道：短信网关（真实短信下发，未配置则走本地演示模式）
+  # 通知渠道：短信（上线只需把 sms-enabled 置 true + 填好对应 provider 的凭证）
+  # 未启用或凭证不全时自动走本地演示模式（验证码回显，便于自测）
   notify:
     sms-enabled: ${CSP_SMS_ENABLED:false}
+    # aliyun / tencent / http
+    sms-provider: ${CSP_SMS_PROVIDER:http}
+    # provider=http 时的通用网关
     sms-gateway: ${CSP_SMS_GATEWAY:}
     sms-token: ${CSP_SMS_TOKEN:}
+    aliyun:
+      access-key-id: ${CSP_SMS_ALIYUN_AK:}
+      access-key-secret: ${CSP_SMS_ALIYUN_SK:}
+      sign-name: ${CSP_SMS_ALIYUN_SIGN:}
+      template-code: ${CSP_SMS_ALIYUN_TEMPLATE:}
+      template-param: ${CSP_SMS_ALIYUN_PARAM:code}
+      notice-template-code: ${CSP_SMS_ALIYUN_NOTICE_TEMPLATE:}
+      notice-template-param: ${CSP_SMS_ALIYUN_NOTICE_PARAM:content}
+      endpoint: ${CSP_SMS_ALIYUN_ENDPOINT:dysmsapi.aliyuncs.com}
+    tencent:
+      secret-id: ${CSP_SMS_TENCENT_ID:}
+      secret-key: ${CSP_SMS_TENCENT_KEY:}
+      sdk-app-id: ${CSP_SMS_TENCENT_APPID:}
+      sign-name: ${CSP_SMS_TENCENT_SIGN:}
+      template-id: ${CSP_SMS_TENCENT_TEMPLATE:}
+      template-param-count: ${CSP_SMS_TENCENT_PARAM_COUNT:1}
+      notice-template-id: ${CSP_SMS_TENCENT_NOTICE_TEMPLATE:}
+      region: ${CSP_SMS_TENCENT_REGION:ap-guangzhou}
 
 management:
   endpoints:

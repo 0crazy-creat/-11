@@ -10,8 +10,9 @@
         </p>
       </div>
       <div class="head-actions">
-        <el-button v-if="canEnroll && !myTeam" type="primary" :loading="enrolling" @click="enroll">报名参赛</el-button>
+        <el-button v-if="canEnroll && !myTeam" type="primary" @click="enrollVisible = true">报名参赛</el-button>
         <el-tag v-if="myTeam" type="success" effect="light">已报名：{{ myTeam.name }}</el-tag>
+        <el-button v-if="myTeam" text @click="enrollVisible = true">报名详情</el-button>
         <el-button @click="$router.push(`/rank/${contestId}`)">排行榜</el-button>
       </div>
     </div>
@@ -60,15 +61,26 @@
                 <span class="target-title">动态靶机</span>
                 <el-tag v-if="current.judgeMode" size="small" type="info" effect="plain">{{ current.judgeMode }}</el-tag>
               </div>
-              <template v-if="target && target.accessUrl">
+              <template v-if="target && (target.accessUrl || target.status === 'RUNNING')">
                 <div class="target-info">
                   <div class="target-url-row">
                     <span class="url-label">访问地址：</span>
-                    <a :href="target.accessUrl" target="_blank" rel="noopener" class="url-link">{{ target.accessUrl }}</a>
-                    <el-tag size="small" type="success" effect="plain">运行中 · 端口 {{ target.port }}</el-tag>
+                    <a v-if="target.accessUrl" :href="target.accessUrl" target="_blank" rel="noopener" class="url-link">{{ target.accessUrl }}</a>
+                    <span v-else class="url-link">容器启动中，请稍后刷新…</span>
+                    <el-tag size="small" type="success" effect="plain">
+                      {{ target.simulated ? '模拟模式' : '运行中' }} · 端口 {{ target.port }}
+                    </el-tag>
+                  </div>
+                  <div class="target-countdown">
+                    <el-icon><Timer /></el-icon>
+                    <span v-if="targetRemainSec > 0">
+                      剩余时间 <b :class="{ urgent: targetRemainSec < 600 }">{{ targetCountdown }}</b>
+                    </span>
+                    <span v-else class="expired">容器已到期，请重置</span>
                   </div>
                   <div class="target-actions">
                     <el-button size="small" :loading="targetBusy" @click="resetTarget">重置靶机</el-button>
+                    <el-button size="small" type="primary" plain :loading="targetBusy" @click="extendTarget">续期</el-button>
                     <el-button size="small" type="danger" plain :loading="targetBusy" @click="destroyTarget">销毁容器</el-button>
                   </div>
                 </div>
@@ -101,15 +113,18 @@
         </el-card>
       </el-col>
     </el-row>
+
+    <EnrollDialog v-model="enrollVisible" :contest-id="contestId" @success="load" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { CircleCheckFilled, Monitor, VideoPlay, Paperclip } from '@element-plus/icons-vue'
+import { CircleCheckFilled, Monitor, VideoPlay, Paperclip, Timer } from '@element-plus/icons-vue'
 import request from '@/utils/request'
+import EnrollDialog from '@/components/contest/EnrollDialog.vue'
 
 const route = useRoute()
 const contestId = computed(() => route.params.contestId)
@@ -120,11 +135,21 @@ const solved = ref(new Set())
 const answer = ref('')
 const result = ref(null)
 const submitting = ref(false)
-const enrolling = ref(false)
+const enrollVisible = ref(false)
 const myTeam = ref(null)
 const errMsg = ref('')
 const target = ref(null)
 const targetBusy = ref(false)
+const targetRemainSec = ref(0)
+let targetTimer = null
+
+const targetCountdown = computed(() => {
+  const s = Math.max(0, targetRemainSec.value)
+  const h = String(Math.floor(s / 3600)).padStart(2, '0')
+  const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0')
+  const sec = String(s % 60).padStart(2, '0')
+  return `${h}:${m}:${sec}`
+})
 
 const canEnroll = computed(() => ['SIGNUP', 'RUNNING', 'PENDING'].includes(contest.value.status))
 
@@ -160,17 +185,6 @@ async function load() {
   } catch (e) { myTeam.value = null }
 }
 
-async function enroll() {
-  enrolling.value = true
-  try {
-    await request.post(`/ctf/contests/${contestId.value}/teams`, { contestId: contestId.value, name: '战队' + Date.now().toString().slice(-4) })
-    ElMessage.success('报名成功')
-    await load()
-  } catch (e) {
-    ElMessage.error(e?.message || '报名失败')
-  } finally { enrolling.value = false }
-}
-
 async function submit() {
   if (!answer.value.trim()) return ElMessage.warning('请输入 flag')
   submitting.value = true
@@ -190,14 +204,48 @@ async function submit() {
   } finally { submitting.value = false }
 }
 
+function startTargetTimer() {
+  stopTargetTimer()
+  if (!target.value?.expectStopAt) { targetRemainSec.value = 0; return }
+  const end = new Date(target.value.expectStopAt).getTime()
+  const tick = () => {
+    targetRemainSec.value = Math.max(0, Math.floor((end - Date.now()) / 1000))
+    if (targetRemainSec.value <= 0) stopTargetTimer()
+  }
+  tick()
+  targetTimer = setInterval(tick, 1000)
+}
+
+function stopTargetTimer() {
+  if (targetTimer) { clearInterval(targetTimer); targetTimer = null }
+}
+
 async function loadTargetStatus() {
   if (!current.value?.docker) return
   try {
-    target.value = await request.get(`/ctf/contests/${contestId.value}/targets`, {
+    const data = await request.get(`/ctf/contests/${contestId.value}/targets`, {
       params: { questionId: current.value.id }
     })
+    target.value = data || null
   } catch (e) {
     target.value = null
+  } finally {
+    startTargetTimer()
+  }
+}
+
+async function extendTarget() {
+  targetBusy.value = true
+  try {
+    target.value = await request.post(`/ctf/contests/${contestId.value}/targets/extend`, null, {
+      params: { questionId: current.value.id }
+    })
+    startTargetTimer()
+    ElMessage.success('容器已续期')
+  } catch (e) {
+    ElMessage.error(e?.message || '续期失败')
+  } finally {
+    targetBusy.value = false
   }
 }
 
@@ -208,7 +256,8 @@ async function startTarget() {
     target.value = await request.post(`/ctf/contests/${contestId.value}/targets/start`, null, {
       params: { questionId: current.value.id }
     })
-    ElMessage.success(`容器已启动：${target.value.accessUrl}`)
+    startTargetTimer()
+    ElMessage.success(`容器已启动：${target.value.accessUrl || '正在分配访问地址'}`)
   } catch (e) {
     const errorMsg = e?.response?.data?.message || e?.message || '容器启动失败'
     if (errorMsg.includes('未报名')) {
@@ -229,6 +278,7 @@ async function resetTarget() {
     target.value = await request.post(`/ctf/contests/${contestId.value}/targets/reset`, null, {
       params: { questionId: current.value.id }
     })
+    startTargetTimer()
     ElMessage.success('靶机已重置')
   } catch (e) {
     ElMessage.error(e?.message || '重置失败')
@@ -249,6 +299,8 @@ async function destroyTarget() {
       params: { questionId: current.value.id }
     })
     target.value = null
+    stopTargetTimer()
+    targetRemainSec.value = 0
     ElMessage.success('容器已销毁')
   } catch (e) {
     ElMessage.error(e?.message || '销毁失败')
@@ -260,9 +312,10 @@ async function destroyTarget() {
 watch(() => route.params.contestId, load)
 watch(current, (ch) => {
   if (ch?.docker) loadTargetStatus(ch)
-  else target.value = null
+  else { target.value = null; stopTargetTimer(); targetRemainSec.value = 0 }
 })
 onMounted(load)
+onBeforeUnmount(stopTargetTimer)
 </script>
 
 <style scoped>
@@ -294,7 +347,11 @@ onMounted(load)
 .target-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: #295FFF; font-weight: 600; }
 .target-title { font-size: 14px; }
 .target-info { padding: 12px; background: rgba(41,95,255,0.04); border: 1px solid rgba(41,95,255,0.18); border-radius: 8px; }
-.target-url-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 13px; }
+.target-url-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 13px; flex-wrap: wrap; }
+.target-countdown { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 13px; color: #4e5969; }
+.target-countdown b { font-family: var(--csp-font-mono); color: #295FFF; }
+.target-countdown b.urgent { color: #f53f3f; }
+.target-countdown .expired { color: #f53f3f; }
 .url-label { color: #86909c; }
 .url-link { color: #295FFF; font-family: monospace; text-decoration: none; }
 .url-link:hover { text-decoration: underline; }

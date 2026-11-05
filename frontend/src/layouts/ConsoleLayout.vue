@@ -9,6 +9,7 @@
         <el-menu-item v-if="can('team:manage')" index="/console/teams"><el-icon><User /></el-icon><span>战队管理</span></el-menu-item>
         <el-menu-item v-if="can('user:manage')" index="/console/users"><el-icon><Avatar /></el-icon><span>用户管理</span></el-menu-item>
         <el-menu-item v-if="can('announcement:manage')" index="/console/announcements"><el-icon><Bell /></el-icon><span>公告管理</span></el-menu-item>
+        <el-menu-item v-if="can('writeup:review')" index="/console/writeups"><el-icon><Notebook /></el-icon><span>题解审核</span></el-menu-item>
         <el-menu-item v-if="can('audit:view')" index="/console/audit"><el-icon><Document /></el-icon><span>审计日志</span></el-menu-item>
       </el-menu>
       <div class="aside-foot">
@@ -39,7 +40,7 @@
 <script setup>
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Avatar, Back, Bell, Document, Flag, Odometer, Trophy, User } from '@element-plus/icons-vue'
+import { Avatar, Back, Bell, Document, Flag, Notebook, Odometer, Trophy, User } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 
 const user = useUserStore()

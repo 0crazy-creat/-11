@@ -27,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -54,8 +55,19 @@ public class CtfTargetController {
     private final CtfQuestionMapper questionMapper;
     private final ContainerLifecycleService lifecycleService;
 
-    @Value("${csp.docker.public-host:127.0.0.1}")
+    @Value("${csp.docker.public-host:}")
     private String publicHost;
+
+    private final HttpServletRequest httpRequest;
+
+    private String resolveHost() {
+        if (publicHost != null && !publicHost.isBlank()) return publicHost;
+        String host = httpRequest.getHeader("X-Forwarded-Host");
+        if (host == null || host.isBlank()) host = httpRequest.getHeader("Host");
+        if (host == null || host.isBlank()) return "127.0.0.1";
+        int idx = host.indexOf(':');
+        return idx > 0 ? host.substring(0, idx) : host;
+    }
 
     @Operation(summary = "查询本队该题靶机状态（未启动返回 null）")
     @GetMapping
@@ -177,7 +189,7 @@ public class CtfTargetController {
         String url = accessPort != null && accessPort > 0
                 && !ContainerStatus.DESTROYED.name().equals(c.getStatus())
                 && !ContainerStatus.ERROR.name().equals(c.getStatus())
-                ? "http://" + publicHost + ":" + accessPort : null;
+                ? "http://" + resolveHost() + ":" + accessPort : null;
         return TargetVO.builder()
                 .questionId(c.getQuestionId())
                 .teamId(c.getTeamId())
