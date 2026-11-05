@@ -224,7 +224,8 @@ export const auditApi = {
 
 // ===== 归档 =====
 export const archiveApi = {
-  create: (contestId) => request.post(`/archives/contest/${contestId}`),
+  // 后端 ArchiveCmd 要求 filingNo 必填，必须带 body，否则 400
+  create: (contestId, data) => request.post(`/archives/contest/${contestId}`, data),
   page: (params) => request.get('/archives', { params }),
   byContest: (contestId) => request.get(`/archives/contest/${contestId}`),
   detail: (id) => request.get(`/archives/${id}`),

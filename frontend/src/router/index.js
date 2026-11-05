@@ -38,6 +38,7 @@ const consoleRoutes = [
   { path: 'teams', name: 'admin-teams', component: () => import('@/views/contest/TeamList.vue'), meta: { title: '战队管理', perm: 'team:manage' } },
   { path: 'users', name: 'admin-users', component: () => import('@/views/console/UserList.vue'), meta: { title: '用户管理', perm: 'user:manage' } },
   { path: 'announcements', name: 'admin-announcements', component: () => import('@/views/console/Announcement.vue'), meta: { title: '公告管理', perm: 'announcement:manage' } },
+  { path: 'archives', name: 'admin-archives', component: () => import('@/views/console/ArchiveManage.vue'), meta: { title: '赛事归档', perm: 'contest:archive' } },
   { path: 'audit', name: 'admin-audit', component: () => import('@/views/console/AuditLog.vue'), meta: { title: '审计日志', perm: 'audit:view' } },
   // Phase 1 新增路由
   { path: 'abac', name: 'admin-abac', component: () => import('@/views/admin/AbacPolicyManagement.vue'), meta: { title: 'ABAC 策略管理', perm: 'abac:view' } },
