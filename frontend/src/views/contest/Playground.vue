@@ -79,13 +79,24 @@
                 <el-tag v-if="current.judgeMode" size="small" effect="plain" type="info">{{ current.judgeMode }}</el-tag>
                 <el-tag v-if="current.dynamicScore" size="small" effect="plain" type="warning">动态积分</el-tag>
               </div>
-              <template v-if="target && target.accessUrl">
+              <template v-if="target && (target.accessUrl || target.status === 'RUNNING')">
                 <div class="target-url">
-                  <a :href="target.accessUrl" target="_blank" rel="noopener">{{ target.accessUrl }}</a>
-                  <el-tag size="small" type="success" effect="plain">运行中 · 端口 {{ target.port }}</el-tag>
+                  <a v-if="target.accessUrl" :href="target.accessUrl" target="_blank" rel="noopener">{{ target.accessUrl }}</a>
+                  <span v-else>容器启动中，请稍后刷新…</span>
+                  <el-tag size="small" type="success" effect="plain">
+                    {{ target.simulated ? '模拟模式' : '运行中' }} · 端口 {{ target.port }}
+                  </el-tag>
+                </div>
+                <div class="target-countdown">
+                  <el-icon><Timer /></el-icon>
+                  <span v-if="targetRemainSec > 0">
+                    剩余 <b :class="{ urgent: targetRemainSec < 600 }">{{ targetCountdown }}</b>
+                  </span>
+                  <span v-else class="expired">容器已到期，请重置</span>
                 </div>
                 <div class="target-actions">
                   <el-button size="small" :loading="targetBusy" @click="resetTarget">重置靶机</el-button>
+                  <el-button size="small" type="primary" plain :loading="targetBusy" @click="extendTarget">续期</el-button>
                   <el-button size="small" type="danger" plain :loading="targetBusy" @click="destroyTarget">销毁</el-button>
                 </div>
               </template>
@@ -159,7 +170,9 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { Timer } from '@element-plus/icons-vue'
 import { getContest, listPlayChallenges, submitFlag, getScoreboard, getTargetStatus, startTarget as apiStartTarget, resetTarget as apiResetTarget, destroyTarget as apiDestroyTarget } from '@/api'
+import request from '@/utils/request'
 import { connectWs } from '@/utils/ws'
 
 const props = defineProps({ contestId: { type: [String, Number], required: true } })
@@ -182,10 +195,20 @@ const target = ref(null)
 const targetBusy = ref(false)
 const remainSec = ref(0)
 const totalSec = ref(0)
+const targetRemainSec = ref(0)
 
 let timer = null
+let targetTimer = null
 let ws = null
 let feedSeq = 0
+
+const targetCountdown = computed(() => {
+  const s = Math.max(0, targetRemainSec.value)
+  const h = String(Math.floor(s / 3600)).padStart(2, '0')
+  const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0')
+  const sec = String(s % 60).padStart(2, '0')
+  return `${h}:${m}:${sec}`
+})
 
 const countdown = computed(() => {
   const s = Math.max(0, remainSec.value)
@@ -232,8 +255,26 @@ function selectChallenge(ch) {
   flag.value = ''
   feedback.value = null
   target.value = null
+  stopTargetTimer()
+  targetRemainSec.value = 0
   // 仅容器题查询靶机状态；附件题不发请求
   if (ch && ch.docker) loadTargetStatus(ch)
+}
+
+function startTargetTimer() {
+  stopTargetTimer()
+  if (!target.value?.expectStopAt) { targetRemainSec.value = 0; return }
+  const end = new Date(target.value.expectStopAt).getTime()
+  const tick = () => {
+    targetRemainSec.value = Math.max(0, Math.floor((end - Date.now()) / 1000))
+    if (targetRemainSec.value <= 0) stopTargetTimer()
+  }
+  tick()
+  targetTimer = setInterval(tick, 1000)
+}
+
+function stopTargetTimer() {
+  if (targetTimer) { clearInterval(targetTimer); targetTimer = null }
 }
 
 async function loadTargetStatus(ch) {
@@ -241,6 +282,23 @@ async function loadTargetStatus(ch) {
     target.value = await getTargetStatus(props.contestId, ch.id)
   } catch (e) {
     target.value = null
+  } finally {
+    startTargetTimer()
+  }
+}
+
+async function extendTarget() {
+  targetBusy.value = true
+  try {
+    target.value = await request.post(`/ctf/contests/${props.contestId}/targets/extend`, null, {
+      params: { questionId: current.value.id }
+    })
+    startTargetTimer()
+    ElMessage.success('容器已续期')
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.message || '续期失败')
+  } finally {
+    targetBusy.value = false
   }
 }
 
@@ -249,7 +307,8 @@ async function startTarget() {
   targetBusy.value = true
   try {
     target.value = await apiStartTarget(props.contestId, current.value.id)
-    ElMessage.success(`容器已启动：${target.value.accessUrl}`)
+    startTargetTimer()
+    ElMessage.success(`容器已启动：${target.value.accessUrl || '正在分配访问地址'}`)
   } catch (e) {
     ElMessage.error(e?.response?.data?.message || '容器启动失败')
   } finally {
@@ -261,6 +320,7 @@ async function resetTarget() {
   targetBusy.value = true
   try {
     target.value = await apiResetTarget(props.contestId, current.value.id)
+    startTargetTimer()
     ElMessage.success('靶机已重置')
   } catch (e) {
     ElMessage.error(e?.response?.data?.message || '重置失败')
@@ -274,6 +334,8 @@ async function destroyTarget() {
   try {
     await apiDestroyTarget(props.contestId, current.value.id)
     target.value = null
+    stopTargetTimer()
+    targetRemainSec.value = 0
     ElMessage.success('靶机已销毁')
   } catch (e) {
     ElMessage.error(e?.response?.data?.message || '销毁失败')
@@ -377,6 +439,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   if (timer) clearInterval(timer)
+  if (targetTimer) clearInterval(targetTimer)
   if (ws) ws.close()
 })
 </script>
@@ -454,8 +517,12 @@ onBeforeUnmount(() => {
 .d-attach a:hover { text-decoration: underline; }
 .d-target { margin-top: 14px; padding: 12px; border: 1px solid rgba(41,95,255,0.18); border-radius: 8px; background: rgba(41,95,255,0.04); }
 .target-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #295FFF; font-weight: 600; }
-.target-url { margin: 10px 0; display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.target-url { margin: 10px 0; display: flex; align-items: center; gap: 10px; font-size: 13px; flex-wrap: wrap; }
 .target-url a { color: #295FFF; font-family: var(--csp-font-mono); }
+.target-countdown { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 13px; color: #4e5969; }
+.target-countdown b { font-family: var(--csp-font-mono); color: #295FFF; }
+.target-countdown b.urgent { color: #f53f3f; }
+.target-countdown .expired { color: #f53f3f; }
 .target-hint { margin: 8px 0 10px; font-size: 12px; color: #86909c; }
 .target-actions { display: flex; gap: 8px; }
 .d-hint { color: #ff7d00; background: rgba(255, 212, 59, 0.08); padding: 10px 12px; border-radius: 6px; }

@@ -19,6 +19,13 @@
             <el-tag size="small">{{ row.type }}</el-tag>
           </template>
         </el-table-column>
+        <el-table-column prop="mode" label="赛制" width="90">
+          <template #default="{ row }">
+            <el-tag size="small" :type="row.mode === 'INDIVIDUAL' ? 'success' : 'primary'" effect="plain">
+              {{ row.mode === 'INDIVIDUAL' ? '个人赛' : '团队赛' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="status" label="状态" width="120">
           <template #default="{ row }">
             <el-tag :type="statusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>

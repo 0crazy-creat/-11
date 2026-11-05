@@ -2,21 +2,16 @@ package com.csp.platform.service;
 
 import com.csp.common.api.ResultCode;
 import com.csp.common.exception.BizException;
+import com.csp.platform.notify.SmsSender;
 import com.csp.platform.notify.NotifyProperties;
+import com.csp.platform.notify.SmsSenderFactory;
 import com.csp.infra.redis.RedisService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.Duration;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 /**
  * 短信验证码服务：生成、下发、校验。
@@ -34,7 +29,7 @@ import java.util.Map;
 public class SmsService {
 
     private final RedisService redisService;
-    private final NotifyProperties notifyProperties;
+    private final SmsSenderFactory smsSenderFactory;
 
     private static final SecureRandom RANDOM = new SecureRandom();
     /** 验证码有效期 */
@@ -59,8 +54,8 @@ public class SmsService {
     public String send(String phone) {
         String p = normalize(phone);
 
-        // 1) 60s 重发限制
-        if (Boolean.TRUE.equals(redisService.expire(KEY_RESEND + p, RESEND_INTERVAL))) {
+        // 1) 60s 重发限制：SET NX EX，抢到锁（此前不存在）才允许发送
+        if (!redisService.tryLock(KEY_RESEND + p, "1", RESEND_INTERVAL)) {
             throw new BizException(ResultCode.TOO_MANY_REQUESTS, "验证码发送过于频繁，请稍后再试");
         }
         // 2) 单日上限
@@ -69,29 +64,29 @@ public class SmsService {
             redisService.expire(KEY_DAILY + p, Duration.ofDays(1));
         }
         if (daily != null && daily > DAILY_LIMIT) {
+            // 已达上限，回滚重发锁，避免用户被无谓锁定 60s
+            redisService.delete(KEY_RESEND + p);
             throw new BizException(ResultCode.TOO_MANY_REQUESTS, "今日验证码发送次数已达上限");
         }
 
         String code = String.format("%06d", RANDOM.nextInt(1_000_000));
         redisService.setString(KEY_CODE + p, code, CODE_TTL);
         redisService.delete(KEY_FAIL + p);
-        // 占位重发锁
-        redisService.setString(KEY_RESEND + p, "1", RESEND_INTERVAL);
+        // 重发锁已在步骤 1 通过 tryLock 写入，无需重复 setString
 
-        boolean real = notifyProperties.isSmsEnabled()
-                && notifyProperties.getSmsGateway() != null
-                && !notifyProperties.getSmsGateway().isBlank();
+        SmsSender sender = smsSenderFactory.current();
 
-        if (real) {
+        if (sender != null) {
             try {
-                deliver(p, code);
-                log.info("短信验证码已下发 phone={}", mask(p));
+                sender.sendCode(p, code);
+                log.info("短信验证码已通过 [{}] 下发 phone={}", sender.provider(), mask(p));
                 return null;
             } catch (Exception e) {
                 // 下发失败，回滚限流锁，允许用户重试
                 redisService.delete(KEY_RESEND + p);
                 redisService.delete(KEY_CODE + p);
-                log.error("短信网关下发失败 phone={} err={}", mask(p), e.getMessage());
+                log.error("短信通道 [{}] 下发失败 phone={} err={}",
+                        sender.provider(), mask(p), e.getMessage());
                 throw new BizException(ResultCode.INTERNAL_ERROR, "短信发送失败，请稍后再试");
             }
         }
@@ -128,32 +123,6 @@ public class SmsService {
         redisService.delete(KEY_FAIL + p);
     }
 
-    /** 通过 HTTP 网关下发短信（POST JSON）。 */
-    private void deliver(String phone, String code) throws Exception {
-        String content = "【网络安全竞赛平台】您的登录验证码为 " + code + "，5 分钟内有效，请勿泄露。";
-        Map<String, String> body = new LinkedHashMap<>();
-        body.put("mobile", phone);
-        body.put("content", content);
-
-        String json = toJson(body);
-        HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .uri(URI.create(notifyProperties.getSmsGateway()))
-                .timeout(Duration.ofSeconds(8))
-                .header("Content-Type", "application/json;charset=UTF-8")
-                .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8));
-        String token = notifyProperties.getSmsToken();
-        if (token != null && !token.isBlank()) {
-            builder.header("Authorization", "Bearer " + token);
-        }
-
-        HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
-        HttpResponse<String> resp = client.send(builder.build(),
-                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-        if (resp.statusCode() < 200 || resp.statusCode() >= 300) {
-            throw new IllegalStateException("网关返回 " + resp.statusCode() + ": " + resp.body());
-        }
-    }
-
     private String normalize(String phone) {
         if (phone == null || phone.isBlank()) {
             throw new BizException(ResultCode.BAD_REQUEST, "手机号不能为空");
@@ -169,20 +138,5 @@ public class SmsService {
         return phone.length() >= 7 ? phone.substring(0, 3) + "****" + phone.substring(7) : "***";
     }
 
-    /** 极简 JSON 序列化，避免额外依赖 Jackson 注入问题。 */
-    private String toJson(Map<String, String> map) {
-        StringBuilder sb = new StringBuilder("{");
-        boolean first = true;
-        for (Map.Entry<String, String> e : map.entrySet()) {
-            if (!first) sb.append(',');
-            first = false;
-            sb.append('"').append(escape(e.getKey())).append("\":\"")
-              .append(escape(e.getValue())).append('"');
-        }
-        return sb.append('}').toString();
-    }
-
-    private String escape(String s) {
-        return s.replace("\\", "\\\\").replace("\"", "\\\"");
-    }
+    
 }

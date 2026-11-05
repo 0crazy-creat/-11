@@ -141,26 +141,38 @@ export const awdApi = {
   scoreSettle: (data) => request.post('/awd/score/settle', data)
 }
 
-// ===== 战队 =====
+// ===== 战队（全局模块，与赛事无关：/teams，GlobalTeamController）=====
 export const teamApi = {
-  // 后端真实路径：/teams（全局战队视图，GlobalTeamController）
-  list: (params) => request.get('/teams', { params }),
+  mine: () => request.get('/teams'),
+  create: (data) => request.post('/teams', data),
+  browse: (params) => request.get('/teams/browse', { params }),
+  join: (inviteCode) => request.post('/teams/join', null, { params: { inviteCode } }),
   detail: (id) => request.get(`/teams/${id}`),
-  remove: (id) => request.delete(`/teams/${id}`),
-  // 赛事维度（ContestTeamController：/api/contests/{contestId}/teams）
+  members: (id) => request.get(`/teams/${id}/members`),
+  update: (id, data) => request.put(`/teams/${id}`, data),
+  quit: (id) => request.delete(`/teams/${id}/members/me`),
+  kick: (id, userId) => request.delete(`/teams/${id}/members`, { params: { userId } }),
+  transfer: (id, userId) => request.post(`/teams/${id}/transfer`, null, { params: { userId } }),
+  refreshInviteCode: (id) => request.post(`/teams/${id}/invite-code`),
+  disband: (id) => request.delete(`/teams/${id}`),
+  // 管理端
+  manageList: (params) => request.get('/teams/manage', { params }),
+  forceDisband: (id) => request.delete(`/teams/${id}/force`),
+
+  // ===== 参赛报名（CtfEnrollController：/ctf/contests/{contestId}/teams）=====
+  enrollOptions: (contestId) => request.get(`/ctf/contests/${contestId}/teams/options`),
+  enroll: (contestId, data) => request.post(`/ctf/contests/${contestId}/teams/enroll`, data),
+  enrollIndividual: (contestId) => request.post(`/ctf/contests/${contestId}/teams/enroll`, { mode: 'INDIVIDUAL' }),
+  cancelEnroll: (contestId) => request.delete(`/ctf/contests/${contestId}/teams/quit`),
+  myEnroll: (contestId) => request.get(`/ctf/contests/${contestId}/teams/mine`),
+  enrollMembers: (contestId, teamId) => request.get(`/ctf/contests/${contestId}/teams/${teamId}/members`),
+  reviewEnroll: (contestId, teamId, status) => request.post(`/ctf/contests/${contestId}/teams/${teamId}/review`, null, { params: { status } }),
+
+  // ===== 赛事参赛记录（管理端 ContestTeamController：/contests/{contestId}/teams）=====
   listByContest: (contestId, params) => request.get(`/contests/${contestId}/teams`, { params }),
-  review: (contestId, teamId, status) => request.post(`/contests/${contestId}/teams/${teamId}/review`, null, { params: { status } }),
-  members: (contestId, teamId) => request.get(`/contests/${contestId}/teams/${teamId}/members`),
-  // CTF 赛事战队（CtfEnrollController：/api/ctf/contests/{contestId}/teams）
-  getMyTeam: (contestId) => request.get(`/ctf/contests/${contestId}/teams/mine`),
-  create: (contestId, data) => request.post(`/ctf/contests/${contestId}/teams`, data),
-  join: (contestId, data) => request.post(`/ctf/contests/${contestId}/teams/join`, data),
-  joinByCode: (contestId, data) => request.post(`/ctf/contests/${contestId}/teams/join-by-code`, data),
-  quit: (contestId) => request.delete(`/ctf/contests/${contestId}/teams/quit`),
-  generateInviteCode: (contestId, teamId) => request.post(`/ctf/contests/${contestId}/teams/${teamId}/invite-code`),
-  refreshInviteCode: (contestId, teamId) => request.put(`/ctf/contests/${contestId}/teams/${teamId}/invite-code`),
-  reviewCtf: (contestId, teamId, data) => request.post(`/ctf/contests/${contestId}/teams/${teamId}/review`, data)
+  review: (contestId, teamId, status) => request.post(`/contests/${contestId}/teams/${teamId}/review`, null, { params: { status } })
 }
+
 
 // ===== 公告 =====
 export const announceApi = {
@@ -307,8 +319,6 @@ export const resetTarget = (contestId, questionId) =>
   request.post(`/ctf/contests/${contestId}/targets/reset`, null, { params: { questionId } })
 export const destroyTarget = (contestId, questionId) =>
   request.post(`/ctf/contests/${contestId}/targets/destroy`, null, { params: { questionId } })
-export const destroyAllTargets = (contestId) =>
-  request.post(`/ctf/contests/${contestId}/targets/destroy-all`)
 
 // ===== 题解社区 =====
 export const listWriteups = (params) => request.get('/writeups', { params })

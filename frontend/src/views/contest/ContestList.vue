@@ -13,6 +13,13 @@
         <el-table-column prop="id" label="ID" width="70" />
         <el-table-column prop="name" label="赛事名称" min-width="180" />
         <el-table-column prop="type" label="类型" width="90" />
+        <el-table-column prop="mode" label="模式" width="90">
+          <template #default="{ row }">
+            <el-tag :type="row.mode === 'INDIVIDUAL' ? 'success' : 'primary'" size="small">
+              {{ row.mode === 'INDIVIDUAL' ? '个人赛' : '团队赛' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="status" label="状态" width="110">
           <template #default="{ row }"><el-tag :type="statusType(row.status)">{{ row.status }}</el-tag></template>
         </el-table-column>
@@ -36,6 +43,15 @@
         <el-form-item label="类型">
           <el-select v-model="form.type"><el-option v-for="t in types" :key="t" :label="t" :value="t" /></el-select>
         </el-form-item>
+        <el-form-item label="模式">
+          <el-radio-group v-model="form.mode">
+            <el-radio-button value="TEAM">团队赛</el-radio-button>
+            <el-radio-button value="INDIVIDUAL">个人赛</el-radio-button>
+          </el-radio-group>
+          <div class="form-help" style="margin-top: 4px; color: #909399; font-size: 12px">
+            {{ form.mode === 'TEAM' ? '参赛者需组建战队，以战队为单位答题计分' : '参赛者以个人为单位，无需组建战队' }}
+          </div>
+        </el-form-item>
         <el-form-item label="时间">
           <el-date-picker v-model="range" type="datetimerange" start-placeholder="开始" end-placeholder="结束" />
         </el-form-item>
@@ -55,6 +71,12 @@
           <el-select v-model="editForm.type">
             <el-option v-for="t in types" :key="t" :label="t" :value="t" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="模式">
+          <el-radio-group v-model="editForm.mode">
+            <el-radio-button value="TEAM">团队赛</el-radio-button>
+            <el-radio-button value="INDIVIDUAL">个人赛</el-radio-button>
+          </el-radio-group>
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="editForm.status">
@@ -94,8 +116,8 @@ const rows = ref([])
 const range = ref([])
 const editRange = ref([])
 const query = reactive({ keyword: '', type: '' })
-const form = reactive({ name: '', code: '', type: 'CTF', description: '' })
-const editForm = reactive({ id: null, name: '', code: '', type: 'CTF', status: 'DRAFT', description: '' })
+const form = reactive({ name: '', code: '', type: 'CTF', mode: 'TEAM', description: '' })
+const editForm = reactive({ id: null, name: '', code: '', type: 'CTF', mode: 'TEAM', status: 'DRAFT', description: '' })
 
 function statusType(s) { return { RUNNING: 'success', PENDING: 'info', FINISHED: 'warning' }[s] || 'info' }
 
@@ -107,7 +129,7 @@ async function load() {
   } finally { loading.value = false }
 }
 function openCreate() {
-  Object.assign(form, { name: '', code: '', type: 'CTF', description: '' })
+  Object.assign(form, { name: '', code: '', type: 'CTF', mode: 'TEAM', description: '' })
   range.value = []
   visible.value = true
 }
@@ -128,6 +150,7 @@ function openEdit(row) {
     name: row.name,
     code: row.code,
     type: row.type,
+    mode: row.mode || 'TEAM',
     status: row.status,
     description: row.description
   })

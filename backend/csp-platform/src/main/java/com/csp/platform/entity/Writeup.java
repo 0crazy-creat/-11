@@ -1,5 +1,6 @@
 package com.csp.platform.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.csp.common.entity.BaseEntity;
 import lombok.Data;
@@ -27,4 +28,12 @@ public class Writeup extends BaseEntity {
     private LocalDateTime reviewedAt;
     private Integer viewCount;
     private Integer likeCount;
+
+    /** 非表字段：列表展示用的题目名称 */
+    @TableField(exist = false)
+    private String questionTitle;
+
+    /** 非表字段：列表展示用的赛事名称 */
+    @TableField(exist = false)
+    private String contestName;
 }

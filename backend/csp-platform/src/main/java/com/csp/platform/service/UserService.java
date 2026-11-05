@@ -198,11 +198,8 @@ public class UserService {
         Long me = UserContext.get() == null ? null : UserContext.get().getUserId();
         if (id.equals(me)) throw BizException.of("不能删除当前登录账号");
 
-        SysUser u = new SysUser();
-        u.setId(id);
-        u.setDeleted(1);
-        u.setUpdatedBy(me);
-        userMapper.updateById(u);
+        // MyBatis-Plus 的 updateById 会忽略逻辑删除字段，只能用 deleteById 触发逻辑删除
+        userMapper.deleteById(id);
         userRoleMapper.delete(Wrappers.<SysUserRole>lambdaQuery().eq(SysUserRole::getUserId, id));
         log.info("删除用户 id={}", id);
     }

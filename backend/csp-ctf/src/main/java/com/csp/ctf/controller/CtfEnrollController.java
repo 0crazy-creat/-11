@@ -1,24 +1,27 @@
 package com.csp.ctf.controller;
 
 import com.csp.common.api.Result;
-import com.csp.common.exception.BizException;
-import com.csp.ctf.dto.TeamCreateRequest;
-import com.csp.ctf.dto.TeamJoinRequest;
+import com.csp.common.security.LoginUser;
+import com.csp.ctf.dto.EnrollCmd;
 import com.csp.ctf.entity.ContestTeam;
 import com.csp.ctf.entity.ContestTeamMember;
 import com.csp.ctf.service.ContestEnrollService;
 import com.csp.security.annotation.RequirePermission;
-import com.csp.common.security.LoginUser;
 import com.csp.security.core.UserContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
-/** CTF 报名：建队 / 加入 / 退出 / 审核。 */
+/**
+ * CTF 参赛报名。
+ *
+ * <p>战队管理已拆到全局战队模块（{@code /api/teams}），此处只做「个人 / 战队」二选一的报名，
+ * 战队报名仅队长可提交。</p>
+ */
 @Tag(name = "CTF 报名")
 @RestController
 @RequestMapping("/api/ctf/contests/{contestId}/teams")
@@ -27,42 +30,51 @@ public class CtfEnrollController {
 
     private final ContestEnrollService enrollService;
 
-    @Operation(summary = "创建战队（自动成为队长并报名）")
-    @PostMapping
-    public Result<ContestTeam> create(@PathVariable Long contestId,
-                                      @Valid @RequestBody TeamCreateRequest req) {
-        req.setContestId(contestId);
-        return Result.ok(enrollService.createTeam(currentUserId(), req));
+    @Operation(summary = "报名可选项（赛事模式 + 我担任队长的战队 + 当前参赛状态）")
+    @GetMapping("/options")
+    public Result<Map<String, Object>> options(@PathVariable Long contestId) {
+        return Result.ok(enrollService.options(currentUserId(), contestId));
     }
 
-    @Operation(summary = "加入战队")
-    @PostMapping("/join")
-    public Result<ContestTeam> join(@PathVariable Long contestId,
-                                    @Valid @RequestBody TeamJoinRequest req) {
-        return Result.ok(enrollService.joinTeam(currentUserId(), contestId, req.getTeamId()));
+    @Operation(summary = "报名参赛（mode=INDIVIDUAL 个人 / TEAM 战队，战队仅队长可报名）")
+    @PostMapping("/enroll")
+    public Result<ContestTeam> enroll(@PathVariable Long contestId, @RequestBody EnrollCmd cmd) {
+        LoginUser u = requireUser();
+        if ("TEAM".equalsIgnoreCase(cmd.getMode())) {
+            return Result.ok(enrollService.enrollTeam(u.getUserId(), contestId, cmd.getTeamId()));
+        }
+        return Result.ok(enrollService.enrollIndividual(u.getUserId(), contestId, displayName(u)));
     }
 
-    @Operation(summary = "退出/取消报名")
+    @Operation(summary = "个人赛报名")
+    @PostMapping("/enroll-individual")
+    public Result<ContestTeam> enrollIndividual(@PathVariable Long contestId) {
+        LoginUser u = requireUser();
+        return Result.ok(enrollService.enrollIndividual(u.getUserId(), contestId, displayName(u)));
+    }
+
+    @Operation(summary = "取消报名（队长取消即整队撤赛）")
     @DeleteMapping("/quit")
     public Result<Void> quit(@PathVariable Long contestId) {
         enrollService.quit(currentUserId(), contestId);
         return Result.ok();
     }
 
-    @Operation(summary = "我的战队")
+    @Operation(summary = "我的参赛记录")
     @GetMapping("/mine")
     public Result<ContestTeam> mine(@PathVariable Long contestId) {
         return Result.ok(enrollService.myTeam(currentUserId(), contestId));
     }
 
-    @Operation(summary = "战队成员列表")
+    @Operation(summary = "参赛队伍成员列表")
     @GetMapping("/{teamId}/members")
     public Result<List<ContestTeamMember>> members(@PathVariable Long contestId,
                                                    @PathVariable Long teamId) {
+        enrollService.requireEnroll(contestId, teamId);
         return Result.ok(enrollService.teamMembers(teamId));
     }
 
-    @Operation(summary = "审核战队（管理员/裁判）")
+    @Operation(summary = "审核参赛队伍（管理员/裁判）")
     @RequirePermission("contest:control")
     @PostMapping("/{teamId}/review")
     public Result<Void> review(@PathVariable Long contestId,
@@ -72,39 +84,19 @@ public class CtfEnrollController {
         return Result.ok();
     }
 
-    @Operation(summary = "生成/获取邀请码")
-    @PostMapping("/{teamId}/invite-code")
-    public Result<String> generateInviteCode(@PathVariable Long contestId,
-                                             @PathVariable Long teamId) {
-        // 验证当前用户是队长
-        ContestTeam team = enrollService.myTeam(currentUserId(), contestId);
-        if (team == null || !team.getId().equals(teamId)) {
-            throw BizException.forbidden("无权操作该战队");
-        }
-        if (!team.getCaptainId().equals(currentUserId())) {
-            throw BizException.forbidden("仅队长可生成邀请码");
-        }
-        
-        String code = enrollService.generateInviteCode(teamId);
-        return Result.ok(code);
+    private LoginUser requireUser() {
+        LoginUser u = UserContext.get();
+        if (u == null || u.getUserId() == null) throw new com.csp.common.exception.BizException(
+                com.csp.common.api.ResultCode.FORBIDDEN, "请先登录");
+        return u;
     }
 
-    @Operation(summary = "通过邀请码加入战队")
-    @PostMapping("/join-by-code")
-    public Result<ContestTeam> joinByCode(@PathVariable Long contestId,
-                                          @RequestParam String inviteCode) {
-        return Result.ok(enrollService.joinByInviteCode(currentUserId(), contestId, inviteCode));
-    }
-
-    @Operation(summary = "刷新邀请码（重新生成）")
-    @PutMapping("/{teamId}/invite-code")
-    public Result<String> refreshInviteCode(@PathVariable Long contestId,
-                                            @PathVariable Long teamId) {
-        return Result.ok(enrollService.refreshInviteCode(teamId, currentUserId()));
+    private String displayName(LoginUser u) {
+        if (u.getNickname() != null && !u.getNickname().isBlank()) return u.getNickname();
+        return u.getUsername() != null ? u.getUsername() : ("用户" + u.getUserId());
     }
 
     private Long currentUserId() {
-        LoginUser u = UserContext.get();
-        return u == null ? null : u.getUserId();
+        return requireUser().getUserId();
     }
 }

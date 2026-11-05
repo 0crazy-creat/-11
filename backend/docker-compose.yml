@@ -21,5 +21,25 @@ services:
       # Docker 配置 - 使用 Unix socket
       CSP_DOCKER_ENABLED: "true"
       CSP_DOCKER_HOST: "unix:///var/run/docker.sock"
-      CSP_DOCKER_PUBLIC_HOST: "127.0.0.1"
+      # 留空则自动使用请求 Host（推荐）；反代后需固定域名时再显式设置
+      CSP_DOCKER_PUBLIC_HOST: "${CSP_DOCKER_PUBLIC_HOST:-}"
+      # ===== 短信登录（上线只需改这里；不填则走本地演示模式） =====
+      CSP_SMS_ENABLED: "${CSP_SMS_ENABLED:-false}"
+      CSP_SMS_PROVIDER: "${CSP_SMS_PROVIDER:-http}"
+      CSP_SMS_GATEWAY: "${CSP_SMS_GATEWAY:-}"
+      CSP_SMS_TOKEN: "${CSP_SMS_TOKEN:-}"
+      # --- 阿里云 ---
+      CSP_SMS_ALIYUN_AK: "${CSP_SMS_ALIYUN_AK:-}"
+      CSP_SMS_ALIYUN_SK: "${CSP_SMS_ALIYUN_SK:-}"
+      CSP_SMS_ALIYUN_SIGN: "${CSP_SMS_ALIYUN_SIGN:-}"
+      CSP_SMS_ALIYUN_TEMPLATE: "${CSP_SMS_ALIYUN_TEMPLATE:-}"
+      CSP_SMS_ALIYUN_PARAM: "${CSP_SMS_ALIYUN_PARAM:-code}"
+      # --- 腾讯云 ---
+      CSP_SMS_TENCENT_ID: "${CSP_SMS_TENCENT_ID:-}"
+      CSP_SMS_TENCENT_KEY: "${CSP_SMS_TENCENT_KEY:-}"
+      CSP_SMS_TENCENT_APPID: "${CSP_SMS_TENCENT_APPID:-}"
+      CSP_SMS_TENCENT_SIGN: "${CSP_SMS_TENCENT_SIGN:-}"
+      CSP_SMS_TENCENT_TEMPLATE: "${CSP_SMS_TENCENT_TEMPLATE:-}"
+      CSP_SMS_TENCENT_PARAM_COUNT: "${CSP_SMS_TENCENT_PARAM_COUNT:-1}"
+      CSP_SMS_TENCENT_REGION: "${CSP_SMS_TENCENT_REGION:-ap-guangzhou}"
     restart: unless-stopped

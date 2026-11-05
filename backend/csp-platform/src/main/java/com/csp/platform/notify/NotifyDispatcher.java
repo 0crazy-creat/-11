@@ -2,24 +2,19 @@ package com.csp.platform.notify;
 
 import com.csp.platform.entity.SysUser;
 import com.csp.platform.mapper.SysUserMapper;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.Properties;
 import jakarta.mail.Message;
 import jakarta.mail.Session;
 import jakarta.mail.Transport;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
-/** 真实通知投递：SMTP 发邮件、HTTP 网关发短信；失败不影响站内信落库。 */
+import java.nio.charset.StandardCharsets;
+import java.util.Properties;
+
+/** 真实通知投递：SMTP 发邮件、短信走 SmsSenderFactory；失败不影响站内信落库。 */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -27,6 +22,7 @@ public class NotifyDispatcher {
 
     private final NotifyProperties props;
     private final SysUserMapper userMapper;
+    private final SmsSenderFactory smsSenderFactory;
 
     /** 投递结果：是否真正发出 + 说明 */
     public record Result(boolean delivered, String detail) {}
@@ -56,7 +52,8 @@ public class NotifyDispatcher {
             p.put("mail.smtp.ssl.enable", String.valueOf(props.isMailSsl()));
             p.put("mail.smtp.connectiontimeout", "5000");
             p.put("mail.smtp.timeout", "8000");
-            Session s = Session.getInstance(p);
+
+            Session s = Session.getInstance(p, null);
             MimeMessage m = new MimeMessage(s);
             m.setFrom(new InternetAddress(props.getMailFrom()));
             m.setRecipients(Message.RecipientType.TO, InternetAddress.parse(u.getEmail()));
@@ -72,8 +69,9 @@ public class NotifyDispatcher {
     }
 
     private Result sendSms(Long userId, String text) {
-        if (!props.isSmsEnabled() || props.getSmsGateway().isBlank()) {
-            return new Result(false, "短信渠道未启用（csp.notify.sms-enabled / sms-gateway）");
+        SmsSender sender = smsSenderFactory.current();
+        if (sender == null) {
+            return new Result(false, "短信渠道未启用（csp.notify.sms-enabled）");
         }
         if (userId == null) return new Result(false, "广播通知缺少接收手机号");
         SysUser u = userMapper.selectById(userId);
@@ -81,20 +79,11 @@ public class NotifyDispatcher {
             return new Result(false, "用户无手机号，跳过短信投递");
         }
         try {
-            String body = "{\"mobile\":\"" + u.getPhone() + "\",\"content\":\""
-                    + text.replace("\\", "\\\\").replace("\"", "\\\"") + "\"}";
-            HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(props.getSmsGateway()))
-                    .timeout(Duration.ofSeconds(8))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
-            if (!props.getSmsToken().isBlank()) b.header("Authorization", "Bearer " + props.getSmsToken());
-            HttpResponse<String> r = HttpClient.newHttpClient().send(b.build(),
-                    HttpResponse.BodyHandlers.ofString());
-            boolean ok = r.statusCode() >= 200 && r.statusCode() < 300;
-            log.info("[SMS] -> {} status={} resp={}", u.getPhone(), r.statusCode(), r.body());
-            return new Result(ok, ok ? "短信已提交网关" : "网关返回 " + r.statusCode());
+            sender.sendText(u.getPhone(), text);
+            log.info("[SMS] -> {} provider={}", u.getPhone(), sender.provider());
+            return new Result(true, "短信已提交（" + sender.provider() + "）");
         } catch (Exception e) {
-            log.warn("[SMS] 投递失败 userId={} err={}", userId, e.getMessage());
+            log.warn("[SMS] 投递失败 userId={} provider={} err={}", userId, sender.provider(), e.getMessage());
             return new Result(false, "短信投递失败：" + e.getMessage());
         }
     }

@@ -10,7 +10,7 @@
         </p>
       </div>
       <div class="head-actions">
-        <el-button v-if="canEnroll && !myTeam" type="primary" :loading="enrolling" @click="enroll">报名参赛</el-button>
+        <el-button v-if="canEnroll && !myTeam" type="primary" @click="enrollVisible = true">报名参赛</el-button>
         <el-tag v-if="myTeam" type="success" effect="light">已报名：{{ myTeam.name }}</el-tag>
         <el-button @click="$router.push(`/rank/${contestId}`)">排行榜</el-button>
         <el-button type="primary" plain @click="$router.push(`/awd/screen/${contestId}`)">
@@ -169,7 +169,7 @@
 
     <el-card v-if="!myTeam && !isAdmin" shadow="never" class="panel mt16">
       <el-empty description="请先报名参赛，报名后可查看靶机与提交 Flag" :image-size="80">
-        <el-button v-if="canEnroll" type="primary" :loading="enrolling" @click="enroll">立即报名</el-button>
+        <el-button v-if="canEnroll" type="primary" @click="enrollVisible = true">立即报名</el-button>
       </el-empty>
     </el-card>
 
@@ -256,6 +256,8 @@
         <el-button type="primary" :loading="actionBusy" :disabled="!patchForm.file" @click="doSubmitPatch">上传并校验</el-button>
       </template>
     </el-dialog>
+
+    <EnrollDialog v-model="enrollVisible" :contest-id="contestId" @success="loadAll" />
   </div>
 </template>
 
@@ -265,7 +267,8 @@ import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Monitor } from '@element-plus/icons-vue'
 import request from '@/utils/request'
-import { useUserStore } from '@/store/user'
+import EnrollDialog from '@/components/contest/EnrollDialog.vue';
+import { useUserStore } from '@/store/user';
 
 const route = useRoute()
 const user = useUserStore()
@@ -284,7 +287,7 @@ const attackLog = ref([])
 const defenseLog = ref([])
 const errMsg = ref('')
 
-const enrolling = ref(false)
+const enrollVisible = ref(false)
 const targetLoading = ref(false)
 const targetBusy = ref(false)
 const roundLoading = ref(false)
@@ -563,17 +566,6 @@ async function doSubmitPatch() {
   } catch (e) { ElMessage.error(e?.message || '提交失败') } finally { actionBusy.value = false }
 }
 
-async function enroll() {
-  enrolling.value = true
-  try {
-    await request.post(`/ctf/contests/${contestId.value}/teams`, {
-      contestId: contestId.value,
-      name: '战队' + Date.now().toString().slice(-4)
-    })
-    ElMessage.success('报名成功')
-    await loadAll()
-  } catch (e) { ElMessage.error(e?.message || '报名失败') } finally { enrolling.value = false }
-}
 
 function updateCountdown() {
   if (!currentRound.value?.endAt) { remainingSeconds.value = 0; return }
