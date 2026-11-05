@@ -435,6 +435,17 @@ export const clusterApi = {
   sample: (params) => request.post('/cluster/sample', null, { params })
 }
 
+// ===== SSO / LDAP（SsoController：/api/sso）=====
+// LDAP 登录走 /sso/ldap/login（query 参数），LDAP 未配置时 status.configured=false
+export const ssoApi = {
+  ldapStatus: () => request.get('/sso/ldap/status'),
+  ldapLogin: (username, password) =>
+    request.post('/sso/ldap/login', null, { params: { username, password } }),
+  issueTicket: (username) => request.get('/sso/ticket/issue', { params: { username } }),
+  validateTicket: (ticket, provider) =>
+    request.post('/sso/ticket/validate', null, { params: { ticket, ...(provider ? { provider } : {}) } })
+}
+
 // ===== AWD 轮次控制（AwdRoundControlController）=====
 export const awdRoundApi = {
   begin: (contestId, roundNo) => request.post(`/awd/rounds/${contestId}/${roundNo}/begin`),
