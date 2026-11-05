@@ -41,6 +41,7 @@ const consoleRoutes = [
   { path: 'archives', name: 'admin-archives', component: () => import('@/views/console/ArchiveManage.vue'), meta: { title: '赛事归档', perm: 'contest:archive' } },
   { path: 'cfs-topologies', name: 'admin-cfs-topologies', component: () => import('@/views/console/CfsTopologyManage.vue'), meta: { title: 'CFS 拓扑管理', perm: 'contest:update' } },
   { path: 'statistics', name: 'admin-statistics', component: () => import('@/views/console/StatisticsReport.vue'), meta: { title: '统计报表', perm: 'contest:view' } },
+  { path: 'lvp', name: 'admin-lvp', component: () => import('@/views/console/LvpVmManage.vue'), meta: { title: 'LVP 虚拟机', perm: 'contest:view' } },
   { path: 'audit', name: 'admin-audit', component: () => import('@/views/console/AuditLog.vue'), meta: { title: '审计日志', perm: 'audit:view' } },
   // Phase 1 新增路由
   { path: 'abac', name: 'admin-abac', component: () => import('@/views/admin/AbacPolicyManagement.vue'), meta: { title: 'ABAC 策略管理', perm: 'abac:view' } },

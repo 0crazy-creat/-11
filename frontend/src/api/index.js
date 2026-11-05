@@ -401,6 +401,19 @@ export const scenarioApi = {
   checkDependency: checkScenarioDependency
 }
 
+// ===== LVP 轻量虚拟化（LvpController：/api/lvp/vms）=====
+// 注意：后端为内存实现，服务重启后实例清空；生产可对接 docker-java / libvirt
+export const lvpApi = {
+  list: () => request.get('/lvp/vms'),
+  detail: (id) => request.get(`/lvp/vms/${id}`),
+  create: (data) => request.post('/lvp/vms', data),
+  start: (id) => request.post(`/lvp/vms/${id}/start`),
+  stop: (id) => request.post(`/lvp/vms/${id}/stop`),
+  snapshot: (id, tag) => request.post(`/lvp/vms/${id}/snapshot`, null, { params: tag ? { tag } : {} }),
+  destroy: (id) => request.delete(`/lvp/vms/${id}`),
+  summary: () => request.get('/lvp/vms/summary')
+}
+
 // ===== AWD 轮次控制（AwdRoundControlController）=====
 export const awdRoundApi = {
   begin: (contestId, roundNo) => request.post(`/awd/rounds/${contestId}/${roundNo}/begin`),
