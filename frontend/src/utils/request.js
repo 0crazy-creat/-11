@@ -47,7 +47,12 @@ http.interceptors.response.use(
       return Promise.reject(new Error(res.message || '未认证'))
     }
     ElMessage.error(res.message || '请求失败')
-    return Promise.reject(new Error(res.message || '请求失败'))
+    // 关键：把后端业务错误包成「带 response 的 Error」，让调用方统一的
+    // e.response.data.message 取值方式依然可用（否则各处只会拿到兜底文案）
+    const bizErr = new Error(res.message || '请求失败')
+    bizErr.code = res.code
+    bizErr.response = { data: res }
+    return Promise.reject(bizErr)
   },
   (error) => {
     const status = error?.response?.status

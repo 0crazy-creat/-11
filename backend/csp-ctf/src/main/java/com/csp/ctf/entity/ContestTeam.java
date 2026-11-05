@@ -32,6 +32,11 @@ public class ContestTeam implements Serializable {
     private String logo;
     private String orgCode;
     private Long captainId;
+    /**
+     * 队长昵称（非持久化字段，仅管理端战队列表批量回填后返回给前端展示）。
+     */
+    @TableField(exist = false)
+    private String captainName;
     /** 成员数 */
     private Integer members;
     /** PENDING/APPROVED/REJECTED/QUIT */
