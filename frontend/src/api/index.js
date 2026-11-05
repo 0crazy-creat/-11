@@ -426,6 +426,15 @@ export const mqttApi = {
     })
 }
 
+// ===== 集群与 SLA（ClusterController：/api/cluster）=====
+// 节点信息为内存态：多实例部署时各节点调用 heartbeat 上报，30s 无心跳判定不健康
+export const clusterApi = {
+  overview: () => request.get('/cluster/overview'),
+  sla: () => request.get('/cluster/sla'),
+  heartbeat: (params) => request.post('/cluster/heartbeat', null, { params }),
+  sample: (params) => request.post('/cluster/sample', null, { params })
+}
+
 // ===== AWD 轮次控制（AwdRoundControlController）=====
 export const awdRoundApi = {
   begin: (contestId, roundNo) => request.post(`/awd/rounds/${contestId}/${roundNo}/begin`),
