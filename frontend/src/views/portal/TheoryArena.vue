@@ -21,6 +21,16 @@
     <!-- 加载态 -->
     <el-card v-if="loading" v-loading="true" class="loading-card" />
 
+    <!-- 未报名：提前拦截，避免答完 14 题才发现全部跳过 -->
+    <el-card v-else-if="notEnrolled" class="enroll-card">
+      <el-result icon="warning" title="尚未报名该理论赛" sub-title="理论赛需要先报名（创建或加入战队）后才能答题计分">
+        <template #extra>
+          <el-button type="primary" @click="$router.push('/portal')">去赛事大厅报名</el-button>
+          <el-button @click="loadPaper">我已报名，刷新</el-button>
+        </template>
+      </el-result>
+    </el-card>
+
     <!-- 试卷为空 -->
     <el-empty v-else-if="!questions.length" description="该赛事暂未配置理论题，请联系赛事管理员" />
 
@@ -118,7 +128,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { theoryApi } from '@/api'
+import { theoryApi, teamApi } from '@/api'
 
 const route = useRoute()
 // 雪花 ID 必须全程保持字符串，切勿 Number()
@@ -127,6 +137,8 @@ const contestId = computed(() => String(route.params.contestId || ''))
 const loading = ref(false)
 const submitting = ref(false)
 const submitted = ref(false)
+/** 未报名标记：后端判分要求 contest_team.status=APPROVED，提前拦截 */
+const notEnrolled = ref(false)
 const paper = ref({})
 const questions = ref([])
 const current = ref(0)
@@ -197,10 +209,31 @@ function parseOptions(q) {
   return out
 }
 
+/**
+ * 报名前置校验：与后端 SubmissionService.submit() 一致，
+ * 要求 myTeam 存在且 status=APPROVED，否则判分会被逐题跳过。
+ */
+async function checkEnrolled() {
+  try {
+    const team = await teamApi.getMyTeam(contestId.value)
+    const ok = team && String(team.status || '').toUpperCase() === 'APPROVED'
+    notEnrolled.value = !ok
+    return ok
+  } catch {
+    // 接口异常时放行，让后端给出权威判定
+    notEnrolled.value = false
+    return true
+  }
+}
+
 async function loadPaper() {
   if (!contestId.value) return
   loading.value = true
   try {
+    if (!(await checkEnrolled())) {
+      questions.value = []
+      return
+    }
     const res = await theoryApi.paper(contestId.value)
     paper.value = res || {}
     questions.value = res?.questions || []
