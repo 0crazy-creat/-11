@@ -37,6 +37,16 @@
       </div>
     </el-alert>
 
+    <el-alert
+      v-if="arena && !arena.answering"
+      type="warning"
+      show-icon
+      :closable="false"
+      class="closed-tip"
+      title="当前不可提交"
+      :description="arena.closedReason || '赛事未在进行中'"
+    />
+
     <el-empty v-if="!loading && !(arena?.scenarios || []).length" description="尚未报名该赛事或赛事未配置场景" />
 
     <div v-loading="loading" class="scenes">
@@ -94,7 +104,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {

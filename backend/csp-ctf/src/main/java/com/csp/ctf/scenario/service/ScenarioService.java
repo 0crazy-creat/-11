@@ -69,6 +69,8 @@ public class ScenarioService {
     /** 当前队伍的场景实操赛视图：场景树 + 我的进度 + 总分。 */
     public ScenarioArenaVO arena(Long contestId, Long userId, boolean privileged) {
         Contest contest = contestGuard.requireContest(contestId);
+        String closedReason = answeringClosedReason(contest);
+        boolean answering = closedReason.isEmpty();
 
         Long teamId = resolveTeamId(contestId, userId, privileged);
         Set<Long> solved = solvedQuestionIds(contestId, teamId);
@@ -82,7 +84,10 @@ public class ScenarioService {
             return ScenarioArenaVO.builder()
                     .contestId(contestId).contestName(contest.getName())
                     .totalScore(0).myScore(0).solvedCount(0).totalCount(0)
-                    .scenarios(List.of()).build();
+                    .scenarios(List.of())
+                    .status(contest.getStatus())
+                    .startAt(contest.getStartAt()).endAt(contest.getEndAt())
+                    .answering(answering).closedReason(closedReason).build();
         }
 
         Map<Long, Integer> scoreOverride = new HashMap<>();
@@ -138,7 +143,30 @@ public class ScenarioService {
                 .contestId(contestId).contestName(contest.getName())
                 .totalScore(totalScore).myScore(myScore)
                 .solvedCount(solvedCount).totalCount(totalCount)
-                .scenarios(scenarios).build();
+                .scenarios(scenarios)
+                .status(contest.getStatus())
+                .startAt(contest.getStartAt()).endAt(contest.getEndAt())
+                .answering(answering).closedReason(closedReason).build();
+    }
+
+    /**
+     * 与 {@link ContestGuard#requireAnswering} 保持同一判定口径，
+     * 让前端在渲染前就知道能否提交，而不是点了按钮才吃 409。
+     *
+     * @return 空串表示可答题；否则为面向选手的中文原因
+     */
+    private String answeringClosedReason(Contest c) {
+        if (!"RUNNING".equals(c.getStatus())) {
+            return "赛事未在进行中（当前状态：" + c.getStatus() + "）";
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (c.getStartAt() != null && now.isBefore(c.getStartAt())) {
+            return "比赛尚未开始";
+        }
+        if (c.getEndAt() != null && now.isAfter(c.getEndAt())) {
+            return "比赛已结束";
+        }
+        return "";
     }
 
     // =====================================================================
