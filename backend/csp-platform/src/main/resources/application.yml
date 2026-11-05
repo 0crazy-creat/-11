@@ -99,7 +99,8 @@ csp:
   wechat:
     app-id: ${CSP_WX_APPID:}
     app-secret: ${CSP_WX_SECRET:}
-    redirect-uri: ${CSP_WX_REDIRECT:http://127.0.0.1:11001/login}
+    redirect-uri: ${CSP_WX_REDIRECT:http://127.0.0.1:11001/wechat-callback}
+    api-base: ${CSP_WX_API_BASE:https://api.weixin.qq.com}
     qr-expire-seconds: 300
   # 通知渠道：短信（上线只需把 sms-enabled 置 true + 填好对应 provider 的凭证）
   # 未启用或凭证不全时自动走本地演示模式（验证码回显，便于自测）

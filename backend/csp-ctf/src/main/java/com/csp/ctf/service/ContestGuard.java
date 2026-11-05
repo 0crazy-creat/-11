@@ -23,11 +23,17 @@ public class ContestGuard {
         return c;
     }
 
-    /** 报名窗口校验：SIGNUP/RUNNING 且处于报名时间区间（补报名开关可放宽）。 */
+    /**
+     * 报名窗口校验：仅赛前（SIGNUP）且处于报名时间区间。
+     * 开赛后不再接受报名；补报名开关 allowLate 只放宽 signupEnd，不放宽赛事状态。
+     */
     public Contest requireSignupOpen(Long contestId) {
         Contest c = requireContest(contestId);
         String st = c.getStatus();
-        if (!"SIGNUP".equals(st) && !"RUNNING".equals(st)) {
+        if ("RUNNING".equals(st)) {
+            throw new BizException(ResultCode.CONFLICT, "比赛已开始，报名已截止");
+        }
+        if (!"SIGNUP".equals(st)) {
             throw new BizException(ResultCode.CONFLICT, "当前赛事状态不允许报名：" + st);
         }
         LocalDateTime now = LocalDateTime.now();

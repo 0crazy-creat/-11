@@ -152,6 +152,8 @@ public class AuthService {
                 user.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
                 user.setStatus(1);
                 userMapper.insert(user);
+                // 默认分配 PLAYER，保证登录后路由/菜单有权限
+                assignDefaultRole(user.getId(), "PLAYER");
                 log.info("第三方首次登录，自动建号 userId={} provider={}", user.getId(), prov);
             }
             redisService.set(bindKey, String.valueOf(user.getId()), java.time.Duration.ofDays(30));
@@ -484,11 +486,14 @@ public class AuthService {
         v.put("status", "WAITING");   // WAITING / SCANNED / CONFIRMED / EXPIRED
         int ttlSeconds = wechatProps.getQrExpireSeconds() > 0 ? wechatProps.getQrExpireSeconds() : 300;
         redisService.set(key, v, java.time.Duration.ofSeconds(ttlSeconds));
-Map<String, Object> out = new java.util.LinkedHashMap<>();
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
         out.put("state", state);
         boolean real = wechatProps.isReal();
         if (real) {
-            // 真实微信开放平台：扫码后微信回调 redirect_uri，由 /wechat/callback 承接
+            // 真实微信开放平台：前端用官方 WxLogin.js 嵌入二维码，扫码后顶层窗口回跳 redirect_uri
+            out.put("appId", wechatProps.getAppId());
+            out.put("redirectUri", wechatProps.getRedirectUri());
+            out.put("scope", "snsapi_login");
             out.put("qrContent", "https://open.weixin.qq.com/connect/qrconnect?appid="
                     + wechatProps.getAppId() + "&scope=snsapi_login&state=" + state
                     + "&redirect_uri=" + java.net.URLEncoder.encode(wechatProps.getRedirectUri(), java.nio.charset.StandardCharsets.UTF_8));
@@ -497,7 +502,16 @@ Map<String, Object> out = new java.util.LinkedHashMap<>();
             // 手机扫码即打开可点击的确认页面，点确认后走 /wechat/callback → /wechat/exchange 完成登录，
             // 不再出现「扫出一串字符就打不开」的情况。
             String base = wechatProps.getRedirectUri();
-            if (base.endsWith("/login")) base = base.substring(0, base.length() - "/login".length());
+            if (base == null || base.isBlank()) base = "http://127.0.0.1:11001";
+            int q = base.indexOf('?');
+            if (q >= 0) base = base.substring(0, q);
+            while (base.endsWith("/")) base = base.substring(0, base.length() - 1);
+            for (String suffix : new String[]{"/wechat-callback", "/qr-confirm", "/login"}) {
+                if (base.endsWith(suffix)) {
+                    base = base.substring(0, base.length() - suffix.length());
+                    break;
+                }
+            }
             out.put("qrContent", base + "/qr-confirm?state=" + state);
         }
         out.put("mode", real ? "real" : "simulated");
@@ -549,8 +563,16 @@ Map<String, Object> out = new java.util.LinkedHashMap<>();
         Object raw = redisService.get(key);
         if (raw == null) throw new BizException(ResultCode.BAD_REQUEST, "二维码已过期，请重新获取");
 
-        String openid = wechatProps.isReal() ? exchangeWechatOpenId(code.trim()) : "wx_" + code.trim();
-        SysUser user = resolveOrCreateThirdUser("wechat", openid);
+        String openid;
+        String unionid = null;
+        if (wechatProps.isReal()) {
+            Map<String, String> token = exchangeWechatToken(code.trim());
+            openid = token.get("openid");
+            unionid = token.get("unionid");
+        } else {
+            openid = "wx_" + code.trim();
+        }
+        SysUser user = resolveOrCreateWechatUser(openid, unionid);
         Map<String, String> v = new java.util.LinkedHashMap<>();
         v.put("status", "CONFIRMED");
         v.put("userId", String.valueOf(user.getId()));
@@ -561,7 +583,7 @@ Map<String, Object> out = new java.util.LinkedHashMap<>();
         out.put("status", "CONFIRMED");
         out.put("openid", openid);
         out.put("userId", String.valueOf(user.getId()));
-        log.info("[WECHAT] 扫码确认 state={} openid={} userId={} ip={}", state, openid, user.getId(), clientIp);
+        log.info("[WECHAT] 扫码确认 state={} openid={} userId={} ip={}", state, maskOpenid(openid), user.getId(), clientIp);
         return out;
     }
 
@@ -614,6 +636,8 @@ Map<String, Object> out = new java.util.LinkedHashMap<>();
     /**
      * 手机端点击「确认登录」：把扫码会话置为 CONFIRMED 并绑定一个演示账号，
      * 电脑端轮询到 CONFIRMED 后调 /wechat/exchange 即可换取令牌。
+     *
+     * <p>仅用于未配置微信开放平台时的本地演示；真实微信扫码走 /wechat/callback（openid）。</p>
      */
     public Map<String, Object> qrConfirm(String state, String clientIp) {
         Map<String, Object> out = new java.util.LinkedHashMap<>();
@@ -663,10 +687,74 @@ Map<String, Object> out = new java.util.LinkedHashMap<>();
             u.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
             u.setStatus(1);
             userMapper.insert(u);
+            // 默认分配 PLAYER，保证登录后路由/菜单有权限
+            assignDefaultRole(u.getId(), "PLAYER");
             log.info("[{}] 首次登录自动建号 userId={}", provider, u.getId());
         }
         redisService.set(bindKey, String.valueOf(u.getId()), java.time.Duration.ofDays(30));
         return u;
+    }
+
+    /**
+     * 微信扫码用户：优先按 openid 查，找不到再兼容历史派生用户名，最后新建。
+     * openid 有唯一索引，并发建号时靠 DuplicateKeyException 兜底复用。
+     */
+    private SysUser resolveOrCreateWechatUser(String openid, String unionid) {
+        if (openid == null || openid.isBlank()) {
+            throw new BizException(ResultCode.INTERNAL_ERROR, "微信未返回 openid");
+        }
+        // 1) 按 openid 精确查找
+        SysUser u = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
+                .eq(SysUser::getWechatOpenid, openid).last("LIMIT 1"));
+        if (u != null) {
+            maybeUpdateUnionId(u, unionid);
+            return u;
+        }
+        // 2) 兼容历史数据：按派生用户名查找并回填 openid
+        String legacy = "wechat_" + Integer.toHexString(openid.hashCode());
+        u = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
+                .eq(SysUser::getUsername, legacy).last("LIMIT 1"));
+        if (u != null) {
+            SysUser upd = new SysUser();
+            upd.setId(u.getId());
+            upd.setWechatOpenid(openid);
+            if (unionid != null && !unionid.isBlank()) upd.setWechatUnionid(unionid);
+            userMapper.updateById(upd);
+            return u;
+        }
+        // 3) 新建
+        SysUser nu = new SysUser();
+        nu.setUsername(legacy);
+        nu.setNickname("微信用户");
+        nu.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
+        nu.setStatus(1);
+        nu.setWechatOpenid(openid);
+        nu.setWechatUnionid(unionid);
+        try {
+            userMapper.insert(nu);
+        } catch (org.springframework.dao.DuplicateKeyException dup) {
+            SysUser exist = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
+                    .eq(SysUser::getWechatOpenid, openid).last("LIMIT 1"));
+            if (exist != null) return exist;
+            throw dup;
+        }
+        assignDefaultRole(nu.getId(), "PLAYER");
+        log.info("[WECHAT] 首次登录自动建号 userId={} openid={}", nu.getId(), maskOpenid(openid));
+        return nu;
+    }
+
+    private void maybeUpdateUnionId(SysUser u, String unionid) {
+        if (unionid == null || unionid.isBlank()) return;
+        if (unionid.equals(u.getWechatUnionid())) return;
+        SysUser upd = new SysUser();
+        upd.setId(u.getId());
+        upd.setWechatUnionid(unionid);
+        userMapper.updateById(upd);
+    }
+
+    private static String maskOpenid(String openid) {
+        if (openid == null || openid.length() <= 8) return "***";
+        return openid.substring(0, 4) + "****" + openid.substring(openid.length() - 4);
     }
 
     private String wechatAppId() {
@@ -679,12 +767,15 @@ Map<String, Object> out = new java.util.LinkedHashMap<>();
     }
 
     /**
-     * 用微信 OAuth code 换取 openid（真实模式）。
+     * 用微信 OAuth code 换取 openid / unionid（真实模式）。
      * 文档：https://developers.weixin.qq.com/doc/oplatform/Website_App/WeChat_Login/Wechat_Login.html
      */
-    private String exchangeWechatOpenId(String code) {
+    private Map<String, String> exchangeWechatToken(String code) {
         try {
-            String url = "https://api.weixin.qq.com/sns/oauth2/access_token?appid="
+            String base = wechatProps.getApiBase();
+            if (base == null || base.isBlank()) base = "https://api.weixin.qq.com";
+            if (base.endsWith("/")) base = base.substring(0, base.length() - 1);
+            String url = base + "/sns/oauth2/access_token?appid="
                     + java.net.URLEncoder.encode(wechatAppId(), java.nio.charset.StandardCharsets.UTF_8)
                     + "&secret=" + java.net.URLEncoder.encode(wechatProps.getAppSecret(), java.nio.charset.StandardCharsets.UTF_8)
                     + "&code=" + java.net.URLEncoder.encode(code, java.nio.charset.StandardCharsets.UTF_8)
@@ -705,7 +796,10 @@ Map<String, Object> out = new java.util.LinkedHashMap<>();
             }
             String openid = node.path("openid").asText("");
             if (openid.isBlank()) throw new IllegalStateException("微信未返回 openid");
-            return openid;
+            Map<String, String> out = new java.util.LinkedHashMap<>();
+            out.put("openid", openid);
+            out.put("unionid", node.path("unionid").asText(""));
+            return out;
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {

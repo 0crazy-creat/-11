@@ -6,7 +6,7 @@ import java.util.Set;
  * AWD 轮次状态枚举（轮次控制域独立实现）。
  *
  * <pre>
- *  PENDING ──begin──▶ RUNNING ──settle──▶ SETTLING ──finish──▶ FINISHED
+ *  PENDING ──begin──▶ RUNNING ──check──▶ CHECKING ──settle──▶ SETTLING ──finish──▶ FINISHED
  *     │                  │                   │                    │
  *     └──────────────────┴───────────────────┴────────────────────┘
  *                          （硬中断）──▶ ABORTED
@@ -14,8 +14,9 @@ import java.util.Set;
  *
  * <p>与 {@code com.csp.awd.enums.RoundStatus} 的区别：本枚举是 {@code com.csp.awd.round}
  * 包内轮次控制接口（begin/running/settle/interrupt/dispute/arbitrate）的权威状态定义，
- * 迁移表按「控制面」收敛：PENDING→RUNNING→SETTLING→FINISHED，任意非终态可 ABORTED。
- * 攻击窗口到点自动收窗（RUNNING→CHECKING）属时序编排域，由定时器负责，本状态机不涉及。</p>
+ * 迁移表按「控制面」收敛，额外允许 RUNNING→SETTLING（裁判提前收卷直接结算）。
+ * 两侧共用的状态（PENDING/RUNNING/CHECKING/SETTLING/FINISHED/ABORTED）取值必须保持一致，
+ * 否则读到的库值会在本侧解析失败并被降级成 PENDING。</p>
  */
 public enum RoundStatus {
 
@@ -23,6 +24,15 @@ public enum RoundStatus {
     PENDING,
     /** 攻击窗口开启中，接受攻击提交。 */
     RUNNING,
+    /**
+     * 攻击窗口已关闭，check 脚本执行中。
+     *
+     * <p>{@code AwdRoundService}（{@code com.csp.awd.enums.RoundStatus}）会写入该状态，
+     * 控制面必须识别它：否则 {@code RoundStateMachine.parseOrDefault} 把无法解析的值降级成
+     * PENDING，裁判在收卷后点「结算」会收到一句与真实状态无关的
+     * 「非法状态迁移：PENDING → SETTLING」。</p>
+     */
+    CHECKING,
     /** 攻击窗口已关闭，结算攻防分/SLA 分并推送排行榜（幂等）。 */
     SETTLING,
     /** 结算完成，终态。 */
@@ -49,7 +59,9 @@ public enum RoundStatus {
         }
         return switch (this) {
             case PENDING -> target == RUNNING || target == ABORTED;
-            case RUNNING -> target == SETTLING || target == ABORTED;
+            // RUNNING 可直接 settle（裁判提前收卷结算），也可先 check 再 settle
+            case RUNNING -> target == CHECKING || target == SETTLING || target == ABORTED;
+            case CHECKING -> target == SETTLING || target == ABORTED;
             case SETTLING -> target == FINISHED || target == ABORTED;
             case FINISHED, ABORTED -> false;
         };

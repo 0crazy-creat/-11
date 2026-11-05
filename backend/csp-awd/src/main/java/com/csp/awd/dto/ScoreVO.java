@@ -9,6 +9,8 @@ import lombok.Data;
 public class ScoreVO {
     private Long contestId;
     private Long teamId;
+    /** 战队名（报名快照名，回退全局战队名） */
+    private String teamName;
     /** 总分（攻击 + 防御 - SLA 扣分） */
     private long score;
     /** 攻击得分 */

@@ -7,8 +7,9 @@
         <div>
           <h3 class="name">{{ c.name }}</h3>
           <p class="meta">{{ c.type }} · {{ c.code }} · {{ statusText(c.status) }}</p>
+          <p class="meta">比赛：{{ fmt(c.startAt) }} ~ {{ fmt(c.endAt) }}</p>
         </div>
-        <el-button type="primary" @click="$router.push(`/play/${c.id}`)">进入</el-button>
+        <el-button type="primary" @click="open(c)">{{ c.status === 'RUNNING' ? '进入' : '详情' }}</el-button>
       </div>
     </el-card>
   </div>
@@ -16,23 +17,22 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import request from '@/utils/request'
+import { contestEntryRoute } from '@/constants/contestType'
+const router = useRouter()
 const loading = ref(false)
 const list = ref([])
 function statusText(s) { return { DRAFT:'筹备中',PENDING:'未开始',SIGNUP:'报名中',RUNNING:'进行中',FINISHED:'已结束',ARCHIVED:'已归档' }[s] || s }
+function fmt(t) { if (!t) return '—'; return new Date(t).toLocaleString('zh-CN') }
+function open(c) { router.push(c.status === 'RUNNING' ? contestEntryRoute(c) : `/portal/contests/${c.id}`) }
 async function load() {
   loading.value = true
   try {
     const data = await request.get('/contests', { params: { page: 1, size: 100 } })
     const all = data?.records || []
-    const mine = []
-    for (const c of all) {
-      try {
-        const r = await request.get(`/ctf/contests/${c.id}/teams/mine`)
-        if (r) mine.push(c)
-      } catch (e) { /* ignore */ }
-    }
-    list.value = mine
+    // 后端按当前用户返回 joined（队长/队员/个人报名均计入）
+    list.value = all.filter(c => c.joined === true)
   } finally { loading.value = false }
 }
 onMounted(load)

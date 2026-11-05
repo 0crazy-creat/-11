@@ -1,0 +1,214 @@
+{
+  "base": "http://127.0.0.1",
+  "pass": 40,
+  "fail": 0,
+  "skip": 1,
+  "failed": [],
+  "items": [
+    {
+      "item": "CTF 建赛（mode=TEAM）",
+      "ok": true,
+      "detail": "id=2118305219564539905"
+    },
+    {
+      "item": "CTF 组卷（3 题）",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "item": "推进到 SIGNUP（报名窗口开启）",
+      "ok": true,
+      "detail": "None"
+    },
+    {
+      "item": "注册选手账号 cap1793878294",
+      "ok": true,
+      "detail": "注册成功"
+    },
+    {
+      "item": "队长建全局战队",
+      "ok": true,
+      "detail": "teamId=2118305222823514113"
+    },
+    {
+      "item": "以战队报名参赛",
+      "ok": true,
+      "detail": "参赛记录=2118305223129698305 成员=1 状态=APPROVED"
+    },
+    {
+      "item": "报名可选项回显已报名",
+      "ok": true,
+      "detail": "mode=TEAM"
+    },
+    {
+      "item": "重复报名被拒（409）",
+      "ok": true,
+      "detail": "有成员已在本赛事中参赛，请先让其退出"
+    },
+    {
+      "item": "推进到 RUNNING（答题窗口开启）",
+      "ok": true,
+      "detail": "None"
+    },
+    {
+      "item": "开赛后报名被拒（409）",
+      "ok": true,
+      "detail": "比赛已开始，报名已截止"
+    },
+    {
+      "item": "选手端题目列表",
+      "ok": true,
+      "detail": "count=3"
+    },
+    {
+      "item": "选手端题目不下发 flag",
+      "ok": true,
+      "detail": "泄露=[]"
+    },
+    {
+      "item": "CTF 正确 flag 判分",
+      "ok": true,
+      "detail": "correct=True 本题=201 累计=201"
+    },
+    {
+      "item": "CTF 错误 flag 判分",
+      "ok": true,
+      "detail": "correct=False"
+    },
+    {
+      "item": "注册选手账号 out1793878294",
+      "ok": true,
+      "detail": "注册成功"
+    },
+    {
+      "item": "未报名选手答题被拒",
+      "ok": true,
+      "detail": "未报名该赛事，无法答题"
+    },
+    {
+      "item": "CTF 计分板含本队且得分>0",
+      "ok": true,
+      "detail": "榜单条数=1 本队得分=201"
+    },
+    {
+      "item": "CTF 解题列表可查",
+      "ok": true,
+      "detail": "已解=1"
+    },
+    {
+      "item": "理论建赛（mode=INDIVIDUAL）",
+      "ok": true,
+      "detail": "id=2118305227235921921"
+    },
+    {
+      "item": "理论组卷（3 题）",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "item": "推进到 SIGNUP",
+      "ok": true,
+      "detail": "None"
+    },
+    {
+      "item": "注册选手账号 thy1793878294",
+      "ok": true,
+      "detail": "注册成功"
+    },
+    {
+      "item": "个人报名参赛",
+      "ok": true,
+      "detail": "参赛记录=2118305230889160706"
+    },
+    {
+      "item": "个人赛拒绝战队报名（409）",
+      "ok": true,
+      "detail": "该赛事为个人赛，不支持战队报名"
+    },
+    {
+      "item": "推进到 RUNNING",
+      "ok": true,
+      "detail": "None"
+    },
+    {
+      "item": "理论取试卷",
+      "ok": true,
+      "detail": "题数=3 总分=150"
+    },
+    {
+      "item": "试卷不下发正确答案",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "item": "理论整卷交卷判分",
+      "ok": true,
+      "detail": "正确=3/3 得分=153"
+    },
+    {
+      "item": "理论计分板有成绩",
+      "ok": true,
+      "detail": "条数=1"
+    },
+    {
+      "item": "场景建赛",
+      "ok": true,
+      "detail": "id=2118305233745481729"
+    },
+    {
+      "item": "场景组卷（2 题）",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "item": "推进到 SIGNUP",
+      "ok": true,
+      "detail": "None"
+    },
+    {
+      "item": "战队报名场景赛",
+      "ok": true,
+      "detail": "参赛记录=2118305235716804610"
+    },
+    {
+      "item": "推进到 RUNNING",
+      "ok": true,
+      "detail": "None"
+    },
+    {
+      "item": "场景 flag 判分",
+      "ok": true,
+      "detail": "correct=True 得分=201"
+    },
+    {
+      "item": "场景计分板有成绩",
+      "ok": true,
+      "detail": "条数=1"
+    },
+    {
+      "item": "态势总览",
+      "ok": true,
+      "detail": "赛事=流程-CTF团队赛"
+    },
+    {
+      "item": "态势排行榜有成绩",
+      "ok": true,
+      "detail": "条数=1"
+    },
+    {
+      "item": "态势大屏聚合",
+      "ok": true,
+      "detail": "字段数=5"
+    },
+    {
+      "item": "平台统计",
+      "ok": true,
+      "detail": "{'userCount': '38', 'teamCount': '39', 'challengeCount': '75', 'contestCount': '23'}"
+    },
+    {
+      "item": "靶场服务",
+      "ok": null,
+      "detail": "http://127.0.0.1:11002/api 不可达（URLError）——服务未部署，AWD/动态 flag/靶机生命周期需求无法实测"
+    }
+  ]
+}

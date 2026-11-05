@@ -1,5 +1,6 @@
 package com.csp.infra.docker;
 
+import com.csp.common.exception.BizException;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.CreateContainerResponse;
@@ -8,6 +9,7 @@ import com.github.dockerjava.api.model.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -28,7 +30,7 @@ import java.util.concurrent.CompletableFuture;
  *   <li>端口分配：让 Docker 选择随机临时端口</li>
  * </ul>
  *
- * <p>Docker 不可用时自动降级为模拟模式。</p>
+ * <p>Docker 不可用、镜像缺失或容器创建失败时抛出明确的业务异常，不再静默降级为模拟容器。</p>
  */
 @Slf4j
 @Service
@@ -41,6 +43,13 @@ public class ContainerManager {
     private final ContainerProvider provider;
     private final DockerProperties props;
     private final ImagePullDedup imagePullDedup = new ImagePullDedup();
+
+    /**
+     * 是否允许从镜像仓库拉取。默认关闭：靶场镜像通常由 docker load 导入，
+     * 本地不存在时应立即报错，而不是卡在远程拉取上。
+     */
+    @Value("${csp.docker.pull-enabled:false}")
+    private boolean pullEnabled;
 
     @Autowired
     public ContainerManager(@Autowired(required = false) ContainerProvider provider,
@@ -59,7 +68,7 @@ public class ContainerManager {
      */
     public ContainerResult create(ContainerConfig config) {
         if (!isAvailable()) {
-            return simulate(config);
+            throw new BizException(503, "Docker 服务不可用，无法创建靶机容器，请检查 Docker 守护进程");
         }
 
         DockerClient client = provider.getDockerClient();
@@ -67,8 +76,8 @@ public class ContainerManager {
         String containerName = config.containerName();
 
         if (!ensureImage(client, imageName)) {
-            log.warn("镜像拉取失败，降级为模拟模式: {}", imageName);
-            return simulate(config);
+            log.error("靶机镜像不可用: {}", imageName);
+            throw new BizException(409, "靶机镜像不可用：" + imageName + "，请先在服务器上构建或导入该镜像");
         }
 
         for (int attempt = 1; attempt <= MAX_CREATE_ATTEMPTS; attempt++) {
@@ -83,7 +92,7 @@ public class ContainerManager {
         }
 
         log.error("容器创建彻底失败: {}", containerName);
-        return simulate(config);
+        throw new BizException(500, "靶机容器创建失败：" + containerName + "，请检查镜像、端口与资源限制配置");
     }
 
     private ContainerResult doCreate(DockerClient client, ContainerConfig config, String containerName) {
@@ -246,11 +255,20 @@ public class ContainerManager {
     }
 
     private boolean ensureImage(DockerClient client, String image) {
+        // 1. 本地已有直接用
         try {
             client.inspectImageCmd(image).exec();
             return true;
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+            log.warn("本地镜像不存在: {}", image);
+        }
 
+        // 2. 默认不联网拉取，快速失败，由上层给出「请先导入镜像」的明确提示
+        if (!pullEnabled) {
+            return false;
+        }
+
+        // 3. 显式开启拉取时才尝试，超时收紧到 60s
         try {
             CompletableFuture<Boolean> pull = new CompletableFuture<>();
             client.pullImageCmd(image)
@@ -269,7 +287,7 @@ public class ContainerManager {
                         public void onError(Throwable t) {
                             pull.complete(false);
                         }
-                    }).awaitCompletion(Duration.ofMinutes(5).toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
+                    }).awaitCompletion(Duration.ofSeconds(60).toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
             return pull.getNow(false);
         } catch (Exception e) {
             log.warn("镜像拉取超时或失败 {}: {}", image, e.getMessage());
@@ -308,22 +326,4 @@ public class ContainerManager {
         try { client.removeContainerCmd(id).withForce(true).exec(); } catch (Exception ignored) {}
     }
 
-    private ContainerResult simulate(ContainerConfig config) {
-        int port = props.getPortStart() + new Random().nextInt(
-                Math.max(1, props.getPortEnd() - props.getPortStart()));
-        String simId = "sim-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
-        LocalDateTime now = LocalDateTime.now();
-        return ContainerResult.builder()
-                .containerId(simId)
-                .containerName(config.containerName())
-                .image(config.getImage())
-                .status(ContainerStatus.RUNNING)
-                .startedAt(now)
-                .expectStopAt(now.plusMinutes(config.getTtlMinutes()))
-                .ip("172.20." + Math.floorMod(config.getTeamId() != null ? config.getTeamId().intValue() : 1, 250) + ".10")
-                .port(config.getExposedPort() > 0 ? config.getExposedPort() : 80)
-                .publicPort(port)
-                .simulated(true)
-                .build();
-    }
 }

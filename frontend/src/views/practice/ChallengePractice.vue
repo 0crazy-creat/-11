@@ -1,5 +1,33 @@
 <template>
   <div class="challenge-practice">
+    <div v-if="loggedIn" class="scoreboard">
+      <div class="score-card">
+        <span class="sc-label">我的积分</span>
+        <span class="sc-value">{{ stats.totalScore }}</span>
+      </div>
+      <div class="score-card">
+        <span class="sc-label">已解出</span>
+        <span class="sc-value">{{ stats.solvedCount }}<small> / {{ total }}</small></span>
+      </div>
+      <div class="score-card">
+        <span class="sc-label">提交次数</span>
+        <span class="sc-value">{{ stats.submitCount }}</span>
+      </div>
+      <div class="score-card">
+        <span class="sc-label">正确率</span>
+        <span class="sc-value">{{ stats.accuracy }}<small>%</small></span>
+      </div>
+      <div class="rank-card">
+        <div class="rank-title">练习榜</div>
+        <div v-for="(u, i) in leaderboard" :key="u.userId" class="rank-row">
+          <span class="rank-no" :class="{ top: i < 3 }">{{ i + 1 }}</span>
+          <span class="rank-name">{{ u.name || u.username }}</span>
+          <span class="rank-score">{{ u.score }}</span>
+        </div>
+        <div v-if="!leaderboard.length" class="rank-empty">暂无数据</div>
+      </div>
+    </div>
+
     <el-card class="filter-card">
       <template #header>
         <div class="card-header">
@@ -27,7 +55,10 @@
         <el-col :xs="24" :sm="12" :md="8" :lg="6" v-for="challenge in challenges" :key="challenge.id">
           <el-card class="challenge-item" :body-style="{ padding: '0px' }" shadow="hover">
             <div class="challenge-header" :class="`difficulty-${challenge.difficulty?.toLowerCase()}`">
-              <div class="challenge-title">{{ challenge.title }}</div>
+              <div class="challenge-title">
+                <span class="title-text">{{ challenge.title }}</span>
+                <el-tag v-if="challenge.solved" size="small" type="success" effect="dark" class="solved-tag">已解出</el-tag>
+              </div>
               <el-tag size="small" :type="categoryTagType(challenge.category)">{{ normCategory(challenge.category) }}</el-tag>
             </div>
             <div class="challenge-body">
@@ -142,6 +173,8 @@ import { Search, User, Download, Monitor, Timer } from '@element-plus/icons-vue'
 import {
   getChallenges,
   submitPracticeFlag,
+  getPracticeStats,
+  getPracticeLeaderboard,
   getPracticeContainer,
   startPracticeContainer,
   resetPracticeContainer,
@@ -169,6 +202,23 @@ const submitting = ref(false)
 
 const writeupDialogVisible = ref(false)
 const currentWriteup = ref('')
+
+// ===== 练习计分 =====
+const loggedIn = ref(!!localStorage.getItem('csp_token'))
+const stats = ref({ totalScore: 0, solvedCount: 0, submitCount: 0, accuracy: 0 })
+const leaderboard = ref([])
+
+async function loadStats() {
+  if (!loggedIn.value) return
+  try {
+    const s = await getPracticeStats()
+    if (s) stats.value = { ...stats.value, ...s }
+    const lb = await getPracticeLeaderboard(5)
+    leaderboard.value = Array.isArray(lb) ? lb : []
+  } catch {
+    // 未登录或接口异常时静默，不影响刷题
+  }
+}
 
 // ===== 容器（练习靶机）状态 =====
 const container = ref(null)
@@ -244,6 +294,7 @@ let searchTimer = null
 
 onMounted(() => {
   loadChallenges()
+  loadStats()
 })
 
 onBeforeUnmount(() => {
@@ -444,9 +495,13 @@ async function submitFlag() {
   try {
     const res = await submitPracticeFlag(currentChallenge.value.id, flagInput.value.trim())
     if (res?.correct) {
-      ElMessage.success(`答案正确！本题 ${res.score || 0} 分`)
+      ElMessage.success(
+        res.alreadySolved ? '该题已解出过，本次不计分' : `答案正确！本题 ${res.score || 0} 分`
+      )
+      if (currentChallenge.value) currentChallenge.value.solved = true
       flagInput.value = ''
       dialogVisible.value = false
+      loadStats()
     } else {
       ElMessage.error(res?.message || 'Flag 不正确，请重试')
     }
@@ -536,6 +591,101 @@ function downloadAttachment(url) {
   padding: 0;
 }
 
+/* 练习计分板 */
+.scoreboard {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(180px, 1.5fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.score-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 10px;
+  background: var(--el-bg-color);
+}
+
+.sc-label {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.sc-value {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--el-text-color-primary);
+}
+
+.sc-value small {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--el-text-color-secondary);
+}
+
+.rank-card {
+  padding: 12px 14px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 10px;
+  background: var(--el-bg-color);
+}
+
+.rank-title {
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.rank-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.9;
+}
+
+.rank-no {
+  width: 16px;
+  text-align: center;
+  color: var(--el-text-color-secondary);
+}
+
+.rank-no.top {
+  color: var(--el-color-danger);
+  font-weight: 600;
+}
+
+.rank-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rank-score {
+  font-weight: 600;
+  color: var(--el-color-primary);
+}
+
+.rank-empty {
+  font-size: 12px;
+  color: var(--el-text-color-placeholder);
+}
+
+@media (max-width: 1200px) {
+  .scoreboard {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rank-card {
+    grid-column: span 2;
+  }
+}
+
 .filter-card {
   margin-bottom: 20px;
 }
@@ -553,7 +703,16 @@ function downloadAttachment(url) {
 
 .challenge-item {
   margin-bottom: 16px;
+  height: calc(100% - 16px);
+  display: flex;
+  flex-direction: column;
   transition: transform 0.2s;
+}
+
+.challenge-item :deep(.el-card__body) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .challenge-item:hover {
@@ -585,13 +744,30 @@ function downloadAttachment(url) {
 }
 
 .challenge-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
   font-weight: 600;
   font-size: 16px;
   color: var(--el-text-color-primary);
 }
 
+.title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.solved-tag {
+  flex: none;
+}
+
 .challenge-body {
   padding: 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .challenge-info {
@@ -612,6 +788,7 @@ function downloadAttachment(url) {
 
 .challenge-tags {
   margin-bottom: 12px;
+  min-height: 26px;
 }
 
 .tag {
@@ -623,6 +800,7 @@ function downloadAttachment(url) {
   display: flex;
   align-items: center;
   gap: 6px;
+  margin-top: auto;
   color: var(--el-text-color-secondary);
   font-size: 13px;
 }

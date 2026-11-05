@@ -1,6 +1,7 @@
 -- ============================================================
 -- 基础种子数据：内置角色、权限点、管理员账号
--- 管理员初始密码：Admin@123（首次登录强制修改）
+-- 管理员唯一口令：admin / Admin@123（BCrypt cost 10，不强制首次修改）
+-- 口令被改乱时执行 deploy/sql/fix_admin_password.sql 复位，勿手工 UPDATE
 -- ============================================================
 SET NAMES utf8mb4;
 
@@ -48,8 +49,9 @@ INSERT IGNORE INTO sys_role_permission (role_id, permission_id) VALUES (4,1105),
 INSERT IGNORE INTO sys_role_permission (role_id, permission_id) VALUES (5,1105);
 
 -- 默认管理员 admin / Admin@123
+-- 重复执行时同步复位口令，保证交接环境的凭据始终确定
 INSERT INTO sys_user (id, username, password, nickname, real_name, status) VALUES
  (1000000000000000001,'admin','$2b$10$kygISDtIDLGp6f14nTjbE.SVb5whcgr9G0kOD/znV0AziY1JQFQYG','超级管理员','系统管理员',1)
-ON DUPLICATE KEY UPDATE nickname=VALUES(nickname);
+ON DUPLICATE KEY UPDATE nickname=VALUES(nickname), password=VALUES(password);
 
 INSERT IGNORE INTO sys_user_role (user_id, role_id) VALUES (1000000000000000001, 1);

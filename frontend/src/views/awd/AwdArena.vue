@@ -99,7 +99,8 @@
           <el-descriptions :column="1" size="small" border>
             <el-descriptions-item label="赛事名称">{{ contest.name }}</el-descriptions-item>
             <el-descriptions-item label="赛事类型">{{ contest.type }}</el-descriptions-item>
-            <el-descriptions-item label="比赛时间">{{ contest.startAt }} ~ {{ contest.endAt }}</el-descriptions-item>
+            <el-descriptions-item label="报名时间">{{ formatTime(contest.signupStart) }} ~ {{ formatTime(contest.signupEnd) }}</el-descriptions-item>
+            <el-descriptions-item label="比赛时间">{{ formatTime(contest.startAt) }} ~ {{ formatTime(contest.endAt) }}</el-descriptions-item>
             <el-descriptions-item label="赛事描述">{{ contest.description || '—' }}</el-descriptions-item>
           </el-descriptions>
         </el-card>
@@ -109,7 +110,9 @@
           <template #header><span class="panel-title">实时排名 (Top 10)</span></template>
           <el-table :data="leaderboard" size="small" max-height="280" v-loading="scoreLoading">
             <el-table-column prop="rank" label="#" width="50" />
-            <el-table-column prop="teamName" label="战队" min-width="100" />
+            <el-table-column prop="teamName" label="战队" min-width="100">
+              <template #default="{ row }">{{ row.teamName || ('战队' + row.teamId) }}</template>
+            </el-table-column>
             <el-table-column prop="score" label="总分" width="70" />
             <el-table-column prop="attackScore" label="攻击" width="65" />
             <el-table-column prop="defenseScore" label="防御" width="65" />
@@ -154,6 +157,27 @@
             <span class="tg-label">IP：</span>
             <span class="tg-value">{{ tg.ip }}:{{ tg.port }}</span>
           </div>
+          <div class="tg-info" v-if="tg.sshPort">
+            <span class="tg-label">SSH：</span>
+            <span class="tg-value mono">{{ tg.sshUser || 'root' }}@{{ sshHost }}:{{ tg.sshPort }}</span>
+            <el-button link type="primary" size="small" @click="copyText(tg.sshCommand)">复制命令</el-button>
+          </div>
+          <div class="tg-info" v-if="tg.sshPassword">
+            <span class="tg-label">密码：</span>
+            <span class="tg-value mono">{{ tg.sshPassword }}</span>
+            <el-button link type="primary" size="small" @click="copyText(tg.sshPassword)">复制</el-button>
+          </div>
+          <div class="tg-info" v-else-if="tg.sshPort">
+            <span class="tg-label">SSH：</span>
+            <span class="tg-value warn">镜像未内置 sshd，暂不可登录</span>
+          </div>
+          <div class="tg-info" v-if="tg.serviceOk != null">
+            <span class="tg-label">服务：</span>
+            <el-tag size="small" :type="tg.serviceOk === 1 ? 'success' : 'danger'">
+              {{ tg.serviceOk === 1 ? '正常' : '异常' }}
+            </el-tag>
+            <span class="tg-msg">{{ tg.lastCheckMsg }}</span>
+          </div>
           <div class="tg-meta" v-if="tg.health != null">
             <el-tag size="small" :type="tg.health === 1 ? 'success' : 'danger'">{{ tg.health === 1 ? '健康' : '异常' }}</el-tag>
             <span v-if="tg.cpuPercent != null" class="tg-cpu">CPU {{ tg.cpuPercent.toFixed(1) }}%</span>
@@ -168,8 +192,9 @@
     </el-card>
 
     <el-card v-if="!myTeam && !isAdmin" shadow="never" class="panel mt16">
-      <el-empty description="请先报名参赛，报名后可查看靶机与提交 Flag" :image-size="80">
+      <el-empty :description="enrollEmptyText" :image-size="80">
         <el-button v-if="canEnroll" type="primary" @click="enrollVisible = true">立即报名</el-button>
+        <el-button v-else @click="$router.push(`/portal/contests/${contestId}`)">查看赛事详情</el-button>
       </el-empty>
     </el-card>
 
@@ -263,7 +288,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Monitor } from '@element-plus/icons-vue'
 import request from '@/utils/request'
@@ -271,6 +296,7 @@ import EnrollDialog from '@/components/contest/EnrollDialog.vue';
 import { useUserStore } from '@/store/user';
 
 const route = useRoute()
+const router = useRouter()
 const user = useUserStore()
 // 雪花 ID 为 19 位，超出 Number.MAX_SAFE_INTEGER，必须保持字符串避免精度丢失
 const contestId = computed(() => String(route.params.contestId))
@@ -298,7 +324,31 @@ const remainingSeconds = ref(0)
 let countdownTimer = null
 
 const isAdmin = computed(() => user.isAdmin)
-const canEnroll = computed(() => ['SIGNUP', 'RUNNING', 'PENDING'].includes(contest.value.status))
+
+// SSH 展示：优先当前访问域名，回退 127.0.0.1
+const sshHost = computed(() => window.location.hostname || '127.0.0.1')
+
+async function copyText(text) {
+  if (!text) return
+  try {
+    await navigator.clipboard.writeText(text)
+    ElMessage.success('已复制')
+  } catch {
+    ElMessage.warning('复制失败，请手动选择')
+  }
+}
+const running = computed(() => String(contest.value.status || '').toUpperCase() === 'RUNNING')
+/** 仅赛前开放报名：SIGNUP 且在报名时间区间内，与后端 ContestGuard 保持一致。 */
+const canEnroll = computed(() => {
+  if (String(contest.value.status || '').toUpperCase() !== 'SIGNUP') return false
+  const now = Date.now()
+  if (contest.value.signupStart && now < new Date(contest.value.signupStart).getTime()) return false
+  if (contest.value.signupEnd && now > new Date(contest.value.signupEnd).getTime() && contest.value.allowLate !== 1) return false
+  return true
+})
+const enrollEmptyText = computed(() => running.value
+  ? '比赛已开始，报名已截止；可在赛事详情查看赛题与实时排名'
+  : '请先报名参赛，报名后可查看靶机与提交 Flag')
 
 const showAttackDialog = ref(false)
 const showPatchDialog = ref(false)
@@ -341,6 +391,11 @@ function formatCountdown(sec) {
 async function loadContest() {
   try {
     contest.value = await request.get(`/contests/${contestId.value}`) || {}
+    // 非运行中的赛事不再展示实时赛场：选手/观众回到详情页看赛事信息或最终成绩
+    const st = String(contest.value.status || '').toUpperCase()
+    if (!isAdmin.value && st && st !== 'RUNNING') {
+      router.replace(`/portal/contests/${contestId.value}`)
+    }
   } catch (e) {
     errMsg.value = '赛事信息加载失败：' + (e?.message || '')
   }
@@ -643,6 +698,17 @@ watch(currentRound, (r) => {
 .tg-link { color: var(--csp-primary); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tg-link:hover { text-decoration: underline; }
 .tg-value { font-family: monospace; }
+.tg-value.mono { font-family: Consolas, Monaco, monospace; letter-spacing: 0.2px; }
+.tg-value.warn { color: #d97706; }
+.tg-msg {
+  margin-left: 4px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #86909c;
+  font-size: 11px;
+}
 .tg-meta { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #86909c; }
 .tg-cpu, .tg-mem { font-family: monospace; }
 .tg-actions { display: flex; gap: 6px; margin-top: 4px; }

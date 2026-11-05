@@ -19,6 +19,13 @@ public class AwdTarget {
     private String containerId;
     private String ip;
     private Integer port;
+    /** SSH 宿主端口 */
+    private Integer sshPort;
+    private String sshUser;
+    private String sshPassword;
+    /** 服务检测结果：1 正常 / 0 异常 */
+    private Integer serviceOk;
+    private String lastCheckMsg;
     private String status;
     private Integer health;
     private Double cpuPercent;

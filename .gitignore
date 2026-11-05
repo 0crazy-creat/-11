@@ -55,3 +55,7 @@ Thumbs.db
 内置靶机镜像/
 uploads/
 backend/uploads/
+
+# ===== Python 缓存 =====
+__pycache__/
+*.pyc

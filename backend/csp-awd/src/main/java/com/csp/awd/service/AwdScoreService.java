@@ -51,6 +51,7 @@ public class AwdScoreService {
     private final WsPublisher wsPublisher;
     private final AwdRoundMapper roundMapper;
     private final ScorePolicy scorePolicy;
+    private final AwdNameResolver nameResolver;
 
     /** AWDP 防御分回退（修补后被攻破 0 分）；用 @Lazy 防止与防御服务初始化顺序耦合。 */
     @Lazy
@@ -348,6 +349,11 @@ public class AwdScoreService {
 
     /** 单队积分明细。 */
     public ScoreVO teamScore(Long contestId, Long teamId) {
+        return buildScore(contestId, teamId,
+                nameResolver.teamNames(contestId, List.of(teamId)).get(teamId));
+    }
+
+    private ScoreVO buildScore(Long contestId, Long teamId, String teamName) {
         long attack = (long) readScore(AwdKeys.attack(contestId), teamId);
         long defense = (long) readScore(AwdKeys.defense(contestId), teamId);
         long sla = (long) readScore(AwdKeys.sla(contestId), teamId);
@@ -357,6 +363,7 @@ public class AwdScoreService {
         return ScoreVO.builder()
                 .contestId(contestId)
                 .teamId(teamId)
+                .teamName(teamName)
                 .score(engine.total(attack, defense, sla))
                 .attackScore(attack)
                 .defenseScore(defense)
@@ -367,17 +374,25 @@ public class AwdScoreService {
                 .build();
     }
 
-    /** 排行榜（按总分降序，实时分数取自 ZSet）。 */
+    /** 排行榜（按总分降序，实时分数取自 ZSet）。未报名的历史积分不参与展示。 */
     public List<ScoreVO> leaderboard(Long contestId, int topN) {
         Set<ZSetOperations.TypedTuple<Object>> tuples =
                 redisService.zTop(AwdKeys.total(contestId), Math.max(1, topN));
         List<ScoreVO> out = new ArrayList<>();
         if (tuples == null) return out;
+        List<Long> ids = tuples.stream()
+                .map(ZSetOperations.TypedTuple::getValue)
+                .filter(Objects::nonNull)
+                .map(this::toLong)
+                .toList();
+        Map<Long, String> names = nameResolver.teamNames(contestId, ids);
         long rank = 1;
         for (ZSetOperations.TypedTuple<Object> t : tuples) {
             if (t.getValue() == null) continue;
             long tid = toLong(t.getValue());
-            ScoreVO vo = teamScore(contestId, tid);
+            String name = names.get(tid);
+            if (name == null) continue;
+            ScoreVO vo = buildScore(contestId, tid, name);
             vo.setRank(rank++);
             if (t.getScore() != null) {
                 vo.setScore(t.getScore().longValue());

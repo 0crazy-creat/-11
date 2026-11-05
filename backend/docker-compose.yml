@@ -25,6 +25,13 @@ services:
       CSP_DOCKER_HOST: "unix:///var/run/docker.sock"
       # 留空则自动使用请求 Host（推荐）；反代后需固定域名时再显式设置
       CSP_DOCKER_PUBLIC_HOST: "${CSP_DOCKER_PUBLIC_HOST:-}"
+      # ===== 微信扫码登录（AppID/Secret 留空则走本地演示模式，无需真实微信） =====
+      # 本地演示：CSP_WX_REDIRECT 指向前端可访问地址（手机需能打开），二维码内容会据此生成确认页链接
+      CSP_WX_APPID: "${CSP_WX_APPID:-}"
+      CSP_WX_SECRET: "${CSP_WX_SECRET:-}"
+      CSP_WX_REDIRECT: "${CSP_WX_REDIRECT:-http://127.0.0.1/wechat-callback}"
+      # 微信 API 基础地址（默认官方；仅本地联调需要指向 Stub）
+      CSP_WX_API_BASE: "${CSP_WX_API_BASE:-https://api.weixin.qq.com}"
       # ===== 短信登录（上线只需改这里；不填则走本地演示模式） =====
       CSP_SMS_ENABLED: "${CSP_SMS_ENABLED:-false}"
       CSP_SMS_PROVIDER: "${CSP_SMS_PROVIDER:-http}"

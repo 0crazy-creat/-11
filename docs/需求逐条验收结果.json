@@ -1,0 +1,542 @@
+[
+  {
+    "no": "12",
+    "req": "统一赛制引擎 / 赛事闭环",
+    "status": "PASS",
+    "evidence": "登录成功 token=有"
+  },
+  {
+    "no": "12",
+    "req": "赛事列表（创建/配置/报名/结赛/归档闭环）",
+    "status": "PASS",
+    "evidence": "赛事数=5"
+  },
+  {
+    "no": "4",
+    "req": "原生支持 CTF/AWD/AWDP/场景/理论/CFS",
+    "status": "PASS",
+    "evidence": "已建赛事覆盖赛制=['CTF', 'AWD', 'AWDP', 'SCENARIO', 'THEORY', 'CFS']（6/6）；未覆盖=无；库内全部类型=['AWD', 'AWDP', 'CFS', 'CTF', 'SCENARIO', 'THEORY']"
+  },
+  {
+    "no": "14",
+    "req": "LVP 轻量虚拟化 + 容器调度",
+    "status": "PASS",
+    "evidence": "cluster overview code=0"
+  },
+  {
+    "no": "14",
+    "req": "LVP 虚拟机池",
+    "status": "PASS",
+    "evidence": "lvp list code=0"
+  },
+  {
+    "no": "15",
+    "req": "计算节点（独立靶场服务）健康",
+    "status": "FAIL",
+    "evidence": "status="
+  },
+  {
+    "no": "18",
+    "req": "理论题库（单选/多选/判断）",
+    "status": "PASS",
+    "evidence": "THEORY=18 题（生产目标≥2000，验证库≥10）"
+  },
+  {
+    "no": "19",
+    "req": "CTF 实战题（含 writeup）",
+    "status": "PASS",
+    "evidence": "CTF=42 题（生产≥300）"
+  },
+  {
+    "no": "20",
+    "req": "AWD/AWDP 靶场套件",
+    "status": "FAIL",
+    "evidence": "靶场模板=0 套（AWD 题库=3 题，生产≥30）；独立靶场服务 http://127.0.0.1:11002 不可达：<urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>"
+  },
+  {
+    "no": "20",
+    "req": "场景实操 / CFS 赛题",
+    "status": "FAIL",
+    "evidence": "SCENARIO=2 题（生产≥20）"
+  },
+  {
+    "no": "21",
+    "req": "题库多维模型（知识点/难度标签）",
+    "status": "PASS",
+    "evidence": "difficulty=EASY category=WEB"
+  },
+  {
+    "no": "22",
+    "req": "支持用户投稿题目",
+    "status": "PASS",
+    "evidence": "新增题目 id=2118320279220576258"
+  },
+  {
+    "no": "23",
+    "req": "赛题目统一抽象 + 扩展字段",
+    "status": "PASS",
+    "evidence": "核心字段 ['bankType', 'content', 'difficulty', 'id', 'score', 'status', 'title'] 在四种 bankType 返回结构中一致；ext(JSON) 扩展列有值条数={'CTF': 18, 'THEORY': 17, 'SCENARIO': 2, 'AWD': 3}（null 时该键不返回，如理论题未填扩展配置）"
+  },
+  {
+    "no": "27",
+    "req": "管理员角色",
+    "status": "PASS",
+    "evidence": "角色=['ADMIN', 'JUDGE', 'OBSERVER', 'PLAYER', 'TEACHER', 'VIEWER']"
+  },
+  {
+    "no": "30",
+    "req": "裁判角色",
+    "status": "PASS",
+    "evidence": "JUDGE 已建"
+  },
+  {
+    "no": "32",
+    "req": "教师角色",
+    "status": "PASS",
+    "evidence": "角色码含 TEACHER=True"
+  },
+  {
+    "no": "34",
+    "req": "参赛队员角色",
+    "status": "PASS",
+    "evidence": "PLAYER 已建"
+  },
+  {
+    "no": "36",
+    "req": "观摩用户角色",
+    "status": "PASS",
+    "evidence": "VIEWER 已建"
+  },
+  {
+    "no": "24",
+    "req": "ABAC 属性访问控制",
+    "status": "PASS",
+    "evidence": "need-org code=0"
+  },
+  {
+    "no": "38",
+    "req": "RESTful API（OpenAPI 文档）",
+    "status": "PASS",
+    "evidence": "http://127.0.0.1:8080/v3/api-docs 返回 openapi=3.0.1，注册路径 252 条"
+  },
+  {
+    "no": "38",
+    "req": "WebSocket / 实时推送通道",
+    "status": "PASS",
+    "evidence": "GET /ws/contest/2118318955900887042 握手响应：HTTP/1.1 101 （注册端点 /ws/contest|/ws/awd|/ws/team）"
+  },
+  {
+    "no": "37",
+    "req": "态势大屏数据快照",
+    "status": "PASS",
+    "evidence": "screen code=0 赛事=2118318955900887042"
+  },
+  {
+    "no": "39",
+    "req": "SSO / LDAP 账号同步",
+    "status": "PASS",
+    "evidence": "ldap status=False"
+  },
+  {
+    "no": "39",
+    "req": "LDAP 认证",
+    "status": "PASS",
+    "evidence": "ldap auth code=0"
+  },
+  {
+    "no": "39",
+    "req": "MQTT 接入",
+    "status": "PASS",
+    "evidence": "mqtt code=0"
+  },
+  {
+    "no": "39",
+    "req": "邮件 / 短信网关对接",
+    "status": "NA",
+    "evidence": "站内信已落库，真实外发未成功：deliverStatus=pending:邮件投递失败：Couldn't connect to host, port: 127.0.0.1, 1025; timeout 5000（SMTP/短信网关未在环境配置，通道代码 NotifyDispatcher.EMAIL/SMS 已接入）"
+  },
+  {
+    "no": "41",
+    "req": "用户名密码登录",
+    "status": "PASS",
+    "evidence": "登录成功"
+  },
+  {
+    "no": "41",
+    "req": "手机号注册/登录（短信验证码）",
+    "status": "PASS",
+    "evidence": "下发验证码=有，用该验证码免密登录 → token=有（首登自动建号）"
+  },
+  {
+    "no": "41",
+    "req": "手机号免密登录（错误验证码应拒绝）",
+    "status": "PASS",
+    "evidence": "同号配错误验证码：code=400 message=验证码已过期，请重新获取"
+  },
+  {
+    "no": "41",
+    "req": "邮箱验证码下发",
+    "status": "PASS",
+    "evidence": "邮件码=931132"
+  },
+  {
+    "no": "41",
+    "req": "邮箱验证码注册账号",
+    "status": "PASS",
+    "evidence": "code=0"
+  },
+  {
+    "no": "41",
+    "req": "密码强度校验",
+    "status": "PASS",
+    "evidence": "弱密码被拒 code=400"
+  },
+  {
+    "no": "41",
+    "req": "双因素认证（MFA 开关）",
+    "status": "PASS",
+    "evidence": "mfaEnabled=True secret=NGQ0Mzg0ODUt..."
+  },
+  {
+    "no": "41",
+    "req": "MFA 验证码校验",
+    "status": "PASS",
+    "evidence": "valid=True"
+  },
+  {
+    "no": "41",
+    "req": "找回密码",
+    "status": "PASS",
+    "evidence": "forgot code=0"
+  },
+  {
+    "no": "41",
+    "req": "批量导入导出账号",
+    "status": "PASS",
+    "evidence": "users export http=200"
+  },
+  {
+    "no": "41",
+    "req": "微信扫码登录（生成二维码）",
+    "status": "PASS",
+    "evidence": "state=7b044f3270da4fabbd48c50b47833951 mode=simulated"
+  },
+  {
+    "no": "41",
+    "req": "微信扫码回调",
+    "status": "PASS",
+    "evidence": "callback code=0"
+  },
+  {
+    "no": "41",
+    "req": "扫码后换取登录令牌",
+    "status": "PASS",
+    "evidence": "token=有"
+  },
+  {
+    "no": "41",
+    "req": "按手机号索引查询用户（对外接口）",
+    "status": "PASS",
+    "evidence": "用本脚本刚免密登录的 13993881886 反查：code=0 命中={\"userId\": \"2118320282706042882\", \"username\": \"u13993881886\", \"nickname\": \"手机用户1886\", \"phone\": \"139****1886\", \"status\": 1, \"lastLoginAt\": \"2026-11-05T"
+  },
+  {
+    "no": "41",
+    "req": "按比赛粒度数据隔离（contest_id）",
+    "status": "PASS",
+    "evidence": "AWD赛 2117651092095090689 返回 5 行，越界 contestId=0 行；与 CTF赛 2118318955900887042（0 行）战队交集=0"
+  },
+  {
+    "no": "43",
+    "req": "报名：个人赛/团队赛、队长建队",
+    "status": "PASS",
+    "evidence": "战队列表 code=0"
+  },
+  {
+    "no": "44",
+    "req": "比赛配置（时间/上限/补报名）+ 模板创建",
+    "status": "PASS",
+    "evidence": "新建赛事 id=2118320284790611969"
+  },
+  {
+    "no": "45",
+    "req": "比赛状态机（未开始→即将→进行中）",
+    "status": "PASS",
+    "evidence": "status=RUNNING"
+  },
+  {
+    "no": "45",
+    "req": "软中断 / 硬中断强制结束",
+    "status": "PASS",
+    "evidence": "FINISHED code=0"
+  },
+  {
+    "no": "56",
+    "req": "赛事备案归档",
+    "status": "PASS",
+    "evidence": "archive code=0"
+  },
+  {
+    "no": "46",
+    "req": "公告（Markdown 富文本 + 定向推送）",
+    "status": "PASS",
+    "evidence": "announcement code=0"
+  },
+  {
+    "no": "48",
+    "req": "静态 flag",
+    "status": "FAIL",
+    "evidence": "题目 11 flag=有"
+  },
+  {
+    "no": "48",
+    "req": "动态 flag（每战队独立）",
+    "status": "PASS",
+    "evidence": "AWD 赛事=2117651092095090689 靶机数=15，每队 flag 独立"
+  },
+  {
+    "no": "49",
+    "req": "排行榜",
+    "status": "PASS",
+    "evidence": "scoreboard code=0"
+  },
+  {
+    "no": "49",
+    "req": "解题动态",
+    "status": "PASS",
+    "evidence": "solved code=0"
+  },
+  {
+    "no": "50",
+    "req": "writeup 提交与公开浏览",
+    "status": "PASS",
+    "evidence": "public writeups code=0"
+  },
+  {
+    "no": "50",
+    "req": "writeup 我的提交（含附件）",
+    "status": "PASS",
+    "evidence": "mine code=0"
+  },
+  {
+    "no": "51",
+    "req": "理论赛试卷（随机抽题）",
+    "status": "PASS",
+    "evidence": "理论赛事=2118319027497656321 题数=1 总分=50"
+  },
+  {
+    "no": "51",
+    "req": "理论自动评分",
+    "status": "PASS",
+    "evidence": "正确=0/1 得分=0（本脚本以管理员身份提交，未报名则恒为 0；真实判分见 e2e_verify.py/full-drill.sh）"
+  },
+  {
+    "no": "51",
+    "req": "班级/个人能力分析报告",
+    "status": "PASS",
+    "evidence": "report code=0"
+  },
+  {
+    "no": "52",
+    "req": "场景实操题（一键拉起靶场+提交证据 flag）",
+    "status": "PASS",
+    "evidence": "场景题=场景赛：Web 渗透 关键证据flag=有"
+  },
+  {
+    "no": "53",
+    "req": "站内信通知",
+    "status": "PASS",
+    "evidence": "inbox code=0"
+  },
+  {
+    "no": "54",
+    "req": "反作弊事件（时序/相似度/IP 指纹）",
+    "status": "PASS",
+    "evidence": "CTF赛 2118318955900887042 命中事件=1 类型=['IP_SHARED'] 风险等级=['HIGH']"
+  },
+  {
+    "no": "54",
+    "req": "舞弊审计日志留存",
+    "status": "PASS",
+    "evidence": "audit total=376"
+  },
+  {
+    "no": "55",
+    "req": "流量分析（爆破/外发/Web Payload）",
+    "status": "PASS",
+    "evidence": "AWD赛 2117651092095090689 分析维度={'bruteForce': 0, 'dataExfiltration': 0, 'webPayloads': 0, 'awdAttackFlows': 0} 取证时间=2026-11-05T12:31:27.804151651"
+  },
+  {
+    "no": "56",
+    "req": "赛事备案报告与归档",
+    "status": "PASS",
+    "evidence": "archives total=9"
+  },
+  {
+    "no": "58",
+    "req": "团队制 + 每队独立隔离靶场",
+    "status": "PASS",
+    "evidence": "赛事 2117651092095090689（RUNNING）靶机=15 台，参赛战队=['111', '222', '模拟战队1', '模拟战队2', '模拟战队3']，端口分布=[40004, 40005, 40006, 40007, 40008, 40009, 40010, 40011, 40012, 40013, 40014, 40015, 40016, 40017, 40018]"
+  },
+  {
+    "no": "59",
+    "req": "AWD 经典 / AWDP 增强（流量取证+攻击可视化）",
+    "status": "PASS",
+    "evidence": "AWD 赛 2 场、AWDP 赛 1 场；匹配 awd/score/patch 的已注册路径=['/api/awd/score/patch']；匹配 awd/contests/{contestId}/traffic/capture 的已注册路径=['/api/awd/contests/{contestId}/traffic/capture/start', '/api/awd/contests/{contestId}/traffic/capture/{captureId}']"
+  },
+  {
+    "no": "60",
+    "req": "轮次状态机（多轮流转与单轮时长）",
+    "status": "PASS",
+    "evidence": "轮次=[(1, 'FINISHED'), (2, 'FINISHED'), (3, 'FINISHED'), (5, 'FINISHED')] 单轮时长(s)=[600, 900, 1800]"
+  },
+  {
+    "no": "60",
+    "req": "轮次状态机迁移表可查询",
+    "status": "PASS",
+    "evidence": "第1轮 current=FINISHED 可迁移=[] 终态=True"
+  },
+  {
+    "no": "60",
+    "req": "轮间维护窗口",
+    "status": "NA",
+    "evidence": "CreateRoundRequest 仅有 durationS/mode/provisionTargets，未提供维护窗口字段；轮间维护由 AwdRoundScheduler 定时收敛（CHECKING→SETTLING），非可配置项"
+  },
+  {
+    "no": "62",
+    "req": "攻击得分（flag 校验 → 攻击分）",
+    "status": "PASS",
+    "evidence": "计分板 5 队，攻击分分布=[300, 150, 0, 0, 150]，样例={\"contestId\": \"2117651092095090689\", \"teamId\": \"60011\", \"teamName\": \"模拟战队1\", \"score\": \"210\", \"attackScore\": \"300\", \"defenseScore\": \"40\", \"slaPenalty\": \"-110\", \""
+  },
+  {
+    "no": "63",
+    "req": "防御得分（修补包/补丁 check 验证）",
+    "status": "NA",
+    "evidence": "接口已注册（匹配 awd/score/patch 的已注册路径=['/api/awd/score/patch']），但演示赛 2117651092095090689 的模拟战队未绑定可登录队员账号，以队员身份提交补丁会被 AwdTeamResolver 判为「缺少战队ID」，无法在此实测加分；真实加分链路（提交修补 → +patchBonus → 计入 defenseScore → 重复提交拒绝）在 full-drill.sh 阶段 14 用自建赛事实测"
+  },
+  {
+    "no": "64",
+    "req": "裁判争议裁决入口",
+    "status": "PASS",
+    "evidence": "GET /api/awd/rounds/2117651092095090689/1/dispute code=0 争议单=0；仲裁接口=True"
+  },
+  {
+    "no": "64",
+    "req": "靶机 check 探活",
+    "status": "PASS",
+    "evidence": "GET /api/awd/targets/health-check code=0 结果={\"healthy\": 15}"
+  },
+  {
+    "no": "64",
+    "req": "自定义 check 脚本下发",
+    "status": "NA",
+    "evidence": "轮次创建/靶机配置均未暴露可编辑的 check 脚本入口，仅防御提交实体 AwdDefenseSubmission.checkScript 留了字段；探活走固定 health-check，脚本内容不可按赛事配置"
+  },
+  {
+    "no": "65",
+    "req": "Docker 靶机拉起/重置/销毁 + 资源限额",
+    "status": "FAIL",
+    "evidence": "靶场服务 http://127.0.0.1:11002 响应=<urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>（未部署则本项为真实缺口）"
+  },
+  {
+    "no": "65",
+    "req": "镜像版本快照管理",
+    "status": "FAIL",
+    "evidence": "模板数=<urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>"
+  },
+  {
+    "no": "66",
+    "req": "告警站内信通道实测",
+    "status": "PASS",
+    "evidence": "发送 id=2118320308169662466 title=验收告警-1793881892 命中站内信=True；当前收件箱渠道=['EMAIL', 'INBOX']"
+  },
+  {
+    "no": "66",
+    "req": "轮次切换/被攻击/得分变动自动告警触发",
+    "status": "NA",
+    "evidence": "上述三类告警由服务端事件（AwdRoundScheduler 结算、attack 命中、scoreUpdate WS 推送）触发，本轮验收未制造真实事件时序，仅验证了通道可用（见上一条与第 38 段 WebSocket 握手）"
+  },
+  {
+    "no": "67",
+    "req": "赛事备案归档（队伍/成绩/流量/获奖名单）",
+    "status": "PASS",
+    "evidence": "归档服务可用"
+  },
+  {
+    "no": "70",
+    "req": "排行榜（秒级刷新/TopN）",
+    "status": "PASS",
+    "evidence": "TopN=5（limit=10）榜单前=[(1, '模拟战队1', '210'), (2, '模拟战队2', '10'), (3, '222', '-40')]；连续 3 次取数耗时(ms)=[109, 79, 65]"
+  },
+  {
+    "no": "70",
+    "req": "首杀榜 + 特殊标识",
+    "status": "PASS",
+    "evidence": "CTF赛 2118318955900887042 首杀条目=2（[('SQL注入入门-1793881564', '红队-1793881564'), ('隐写分析-1793881564', '红队-1793881564')]）；榜单带 firstBlood 标识的战队=['红队-1793881564']（字段 firstBlood/firstBloodCount）"
+  },
+  {
+    "no": "70",
+    "req": "榜单导出 CSV",
+    "status": "PASS",
+    "evidence": "csv http=200 size=1228"
+  },
+  {
+    "no": "70",
+    "req": "榜单导出 XLSX",
+    "status": "PASS",
+    "evidence": "xlsx http=200"
+  },
+  {
+    "no": "71",
+    "req": "战队主页（信息/战绩/能力画像）",
+    "status": "PASS",
+    "evidence": "取 AWD 榜首战队 teamId=60011：模拟战队1 状态=APPROVED 成员=2 名次=1 得分=210 邻近榜单=3 画像字段=['teamId', 'teamName', 'status', 'members', 'rank', 'score', 'solved', 'targets']"
+  },
+  {
+    "no": "73",
+    "req": "实时可视化大屏（榜单/动态/趋势）",
+    "status": "PASS",
+    "evidence": "screen keys=['overview', 'top', 'scoreDistribution', 'targets', 'serverTime']"
+  },
+  {
+    "no": "74",
+    "req": "3D 态势飞线（攻击轨迹）",
+    "status": "PASS",
+    "evidence": "飞线条数=4"
+  },
+  {
+    "no": "76",
+    "req": "时序回放（暂停/倍速/导出）",
+    "status": "PASS",
+    "evidence": "replay frames=1"
+  },
+  {
+    "no": "78",
+    "req": "靶机状态监控（存活/CPU/内存/最近 check）",
+    "status": "PASS",
+    "evidence": "监控条目=15 存活=15/15 CPU样例=[(0.0, 0.0), (0.0, 0.0), (0.0, 0.0)] 最近check=2026-11-05T12:31:28"
+  },
+  {
+    "no": "78",
+    "req": "check 通过率指标",
+    "status": "NA",
+    "evidence": "监控返回逐台 health/lastCheckAt，未聚合出「check 通过率」字段；存活率由本脚本按 health==1 现算"
+  },
+  {
+    "no": "79",
+    "req": "服务健康与 SLA 探活",
+    "status": "PASS",
+    "evidence": "stats overview code=0"
+  },
+  {
+    "no": "79",
+    "req": "SLA 可用率/时延统计",
+    "status": "PASS",
+    "evidence": "sla code=0 data={\"uptimeSeconds\": \"402\", \"samples\": \"0\", \"success\": \"0\", \"availability\": 100.0, \"p95LatencyMs\": \"0\", \"targetAvailability\": 99.9, \"targetP95Ms\": \"500\", \"availabi"
+  },
+  {
+    "no": "79",
+    "req": "限流保护（实测 429 并可自愈）",
+    "status": "PASS",
+    "evidence": "连打 140 次 /api/stats/overview：429 次数=109，恢复可用耗时≈50s（阈值 RateLimitFilter.LIMIT=120/分，登录口 10/分）"
+  }
+]

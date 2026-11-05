@@ -66,6 +66,7 @@
                 </div>
 
                 <div class="hero-actions">
+                  <el-button :icon="HomeFilled" @click="goHomePage">战队主页</el-button>
                   <template v-if="isCaptain">
                     <el-button :icon="Edit" @click="openEdit">编辑资料</el-button>
                     <el-button :icon="Refresh" @click="regenCode">刷新邀请码</el-button>
@@ -164,9 +165,11 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, DocumentCopy, Edit, Plus, Refresh, Search } from '@element-plus/icons-vue'
+import { Delete, DocumentCopy, Edit, HomeFilled, Plus, Refresh, Search } from '@element-plus/icons-vue'
 import { teamApi } from '@/api'
+const router = useRouter()
 const tab = ref('detail')
 const myTeams = ref([])
 const selectedId = ref(null)
@@ -187,6 +190,10 @@ const rules = { name: [{ required: true, message: '请输入战队名', trigger:
 
 const current = computed(() => myTeams.value.find(t => String(t.id) === String(selectedId.value)) || null)
 const isCaptain = computed(() => current.value?.myRole === 'CAPTAIN')
+
+function goHomePage() {
+  if (current.value?.id) router.push(`/team-home/${current.value.id}`)
+}
 
 async function loadMine(keepSelection = true) {
   myTeams.value = await teamApi.mine() || []

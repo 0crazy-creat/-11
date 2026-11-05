@@ -75,21 +75,8 @@ public class CtfChallengeController {
         }
         // 报名校验：管理/裁判/平台管理员等特权角色无需报名即可查看全部赛事（用于赛前巡检与赛中监考）；
         // 普通选手必须已组队/报名该赛事。
-        if (!isPrivileged(u)) {
-            Long teamCount = contestTeamMapper.selectCount(
-                    Wrappers.<com.csp.ctf.entity.ContestTeam>lambdaQuery()
-                            .eq(com.csp.ctf.entity.ContestTeam::getContestId, contestId)
-                            .eq(com.csp.ctf.entity.ContestTeam::getCaptainId, u.getUserId()));
-            if (teamCount == null || teamCount == 0) {
-                // 兼容：也可能是普通队员（成员表）
-                Long memberCount = contestTeamMemberMapper.selectCount(
-                        Wrappers.<com.csp.ctf.entity.ContestTeamMember>lambdaQuery()
-                                .eq(com.csp.ctf.entity.ContestTeamMember::getContestId, contestId)
-                                .eq(com.csp.ctf.entity.ContestTeamMember::getUserId, u.getUserId()));
-                if (memberCount == null || memberCount == 0) {
-                    throw new BizException(ResultCode.FORBIDDEN, "尚未报名该赛事，无法查看题目");
-                }
-            }
+        if (!isPrivileged(u) && !isEnrolled(contestId, u.getUserId())) {
+            throw new BizException(ResultCode.FORBIDDEN, "尚未报名该赛事，无法查看题目");
         }
 
         List<ContestQuestion> links = contestQuestionMapper.selectList(
@@ -144,6 +131,68 @@ public class CtfChallengeController {
         }
         out.sort(Comparator.comparing(PlayChallengeVO::getId, Comparator.nullsLast(Comparator.naturalOrder())));
         return Result.ok(out);
+    }
+
+    /**
+     * 选手端题目摘要：只含题名/分类/难度/分值/解出数，不含 flag 与题面。
+     * 用于赛事详情页（赛前预览、赛后回顾）：赛后对所有登录用户开放，赛前/赛中仅报名选手或特权角色可见。
+     */
+    @Operation(summary = "选手端题目摘要（不含 flag/题面；赛后公开）")
+    @GetMapping("/summary")
+    public Result<List<ChallengeSummaryVO>> summary(@PathVariable Long contestId) {
+        Contest contest = contestMapper.selectById(contestId);
+        if (contest == null) throw new BizException(ResultCode.NOT_FOUND, "赛事不存在");
+        LoginUser u = UserContext.get();
+        if (u == null || u.getUserId() == null) {
+            throw new BizException(ResultCode.UNAUTHORIZED, "请先登录");
+        }
+        String st = contest.getStatus();
+        boolean ended = "FINISHED".equals(st) || "ARCHIVED".equals(st);
+        if (!ended && !isPrivileged(u) && !isEnrolled(contestId, u.getUserId())) {
+            throw new BizException(ResultCode.FORBIDDEN, "尚未报名该赛事，无法查看题目");
+        }
+
+        List<ContestQuestion> links = contestQuestionMapper.selectList(
+                Wrappers.<ContestQuestion>lambdaQuery()
+                        .eq(ContestQuestion::getContestId, contestId)
+                        .eq(ContestQuestion::getVisible, 1));
+        if (links.isEmpty()) return Result.ok(new ArrayList<>());
+        List<Long> qids = links.stream().map(ContestQuestion::getQuestionId).filter(Objects::nonNull).toList();
+        if (qids.isEmpty()) return Result.ok(new ArrayList<>());
+
+        java.util.Map<Long, Integer> overrideScore = new java.util.HashMap<>();
+        for (ContestQuestion l : links) {
+            if (l.getQuestionId() != null && l.getScore() != null && l.getScore() > 0) {
+                overrideScore.put(l.getQuestionId(), l.getScore());
+            }
+        }
+
+        List<ChallengeSummaryVO> out = new ArrayList<>();
+        for (CtfQuestion q : questionMapper.selectBatchIds(qids)) {
+            out.add(ChallengeSummaryVO.builder()
+                    .id(q.getId())
+                    .title(q.getTitle())
+                    .category(q.getCategory())
+                    .difficulty(q.getDifficulty())
+                    .score(overrideScore.getOrDefault(q.getId(),
+                            q.getScore() == null || q.getScore() <= 0 ? 100 : q.getScore()))
+                    .solvedCount(solvedTeamCount(contestId, q.getId()))
+                    .build());
+        }
+        out.sort(Comparator.comparing(ChallengeSummaryVO::getId, Comparator.nullsLast(Comparator.naturalOrder())));
+        return Result.ok(out);
+    }
+
+    /** 题目摘要视图（详情页展示，不含题面与答案）。 */
+    @Data
+    @Builder
+    public static class ChallengeSummaryVO {
+        private Long id;
+        private String title;
+        private String category;
+        private String difficulty;
+        private Integer score;
+        private Integer solvedCount;
     }
 
     /** 选手端题目视图：显式不含 flag / answer 字段。 */
@@ -441,6 +490,21 @@ public class CtfChallengeController {
      * 导致参赛选手可以直接调用管理端接口拿到明文 flag。这里按角色做二次收敛，
      * 从根上避免"权限点配错即泄露答案"。</p>
      */
+    /** 是否已报名该赛事（队长或队员均算）。 */
+    private boolean isEnrolled(Long contestId, Long userId) {
+        if (userId == null) return false;
+        Long captainCount = contestTeamMapper.selectCount(
+                Wrappers.<ContestTeam>lambdaQuery()
+                        .eq(ContestTeam::getContestId, contestId)
+                        .eq(ContestTeam::getCaptainId, userId));
+        if (captainCount != null && captainCount > 0) return true;
+        Long memberCount = contestTeamMemberMapper.selectCount(
+                Wrappers.<ContestTeamMember>lambdaQuery()
+                        .eq(ContestTeamMember::getContestId, contestId)
+                        .eq(ContestTeamMember::getUserId, userId));
+        return memberCount != null && memberCount > 0;
+    }
+
     /** 特权角色（无需报名即可查看赛事/题目）：管理员、平台管理员、裁判、教师、超级管理员。 */
     private boolean isPrivileged(LoginUser u) {
         if (u == null) return false;

@@ -20,6 +20,8 @@ public class TargetSpec {
     private String image;
     /** 容器内暴露端口 */
     private int containerPort;
+    /** 容器内 SSH 端口（通常 22），0 表示不映射 */
+    private int sshPort;
     /** 环境变量（注入 flag 等） */
     private Map<String, String> env;
     /** CPU 限额，如 "1.0" */

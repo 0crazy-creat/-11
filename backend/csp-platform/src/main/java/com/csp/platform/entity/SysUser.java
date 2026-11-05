@@ -31,6 +31,10 @@ public class SysUser extends BaseEntity {
     private String mfaSecret;
     private LocalDateTime lastLoginAt;
     private String lastLoginIp;
+    /** 微信 openid（扫码登录绑定） */
+    private String wechatOpenid;
+    /** 微信 unionid（同一开放平台账号下唯一） */
+    private String wechatUnionid;
 
     public boolean isEnabled() { return status != null && status == 1; }
     public boolean isLocked() { return status != null && status == 2; }

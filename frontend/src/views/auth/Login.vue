@@ -55,8 +55,9 @@
         <!-- ========== 扫码登录 ========== -->
         <el-tab-pane label="扫码登录" name="qr" :lazy="false">
           <div class="qr-box">
-            <div class="qr-frame">
-              <canvas ref="qrCanvas" width="180" height="180" />
+            <div class="qr-frame" :class="{ 'qr-frame-real': qrMode === 'real' }">
+              <canvas v-if="qrMode !== 'real'" ref="qrCanvas" width="180" height="180" />
+              <div v-else id="wx-login-container" ref="wxBox" class="wx-login-container"></div>
               <div v-if="qrState && qrState !== 'WAITING'" class="qr-mask">
                 <el-icon class="ok" v-if="qrState === 'CONFIRMED'"><CircleCheckFilled /></el-icon>
                 <el-icon class="spin" v-else><Loading /></el-icon>
@@ -64,7 +65,11 @@
               </div>
             </div>
             <p class="qr-tip">请使用<strong>微信</strong>扫描二维码登录</p>
-            <p class="qr-tip sub">未扫码将自动刷新 · 剩余 {{ qrLeft }}s</p>
+            <p v-if="qrMode === 'real'" class="qr-tip sub">
+              二维码由微信开放平台提供，过期后请点击刷新
+            </p>
+            <p v-else class="qr-tip sub">未扫码将自动刷新 · 剩余 {{ qrLeft }}s</p>
+            <el-button v-if="qrMode === 'real'" text type="primary" size="small" @click="newQr">刷新二维码</el-button>
             <el-button v-if="qrState === 'CONFIRMED'" type="primary" size="large" style="width:100%" :loading="loading" @click="exchangeQr">
               进入平台
             </el-button>
@@ -234,19 +239,21 @@ async function submitPhone() {
 
 /* ---------- 扫码登录 ---------- */
 const qrCanvas = ref()
+const wxBox = ref()
 const qrState = ref('')
 const qrText = ref('')
 const qrLeft = ref(0)
 const qrSession = ref('')
 const qrContent = ref('')
 const qrMode = ref('')
-let qrTimer = null, qrCdTimer = null
+const wxInfo = ref(null)
+let qrTimer = null, qrCdTimer = null, wxScriptPromise = null
 
 const qrTextMap = { WAITING: '等待扫码', SCANNED: '已扫码，请在手机确认', CONFIRMED: '已确认，点击进入平台', EXPIRED: '二维码已过期' }
 
 async function drawQr(content, retry = 0) {
   // el-tab-pane 懒渲染：切 Tab 后 canvas 可能尚未挂载，轮询等待最多 3s
-  let c = qrCanvas.value
+  const c = qrCanvas.value
   if (!c) {
     if (retry < 30) {
       await new Promise(r => setTimeout(r, 100))
@@ -269,27 +276,89 @@ async function drawQr(content, retry = 0) {
   }
 }
 
+/** 加载微信官方 WxLogin.js（真实模式）。脚本来自公网 res.wx.qq.com。 */
+function loadWxLoginScript() {
+  if (window.WxLogin) return Promise.resolve()
+  if (wxScriptPromise) return wxScriptPromise
+  wxScriptPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script')
+    s.src = 'https://res.wx.qq.com/connect/zh_CN/htmledition/js/wxLogin.js'
+    s.async = true
+    s.onload = () => resolve()
+    s.onerror = () => {
+      wxScriptPromise = null
+      reject(new Error('微信登录脚本加载失败，请确认网络可访问 res.wx.qq.com'))
+    }
+    document.head.appendChild(s)
+  })
+  return wxScriptPromise
+}
+
+/**
+ * 真实微信扫码：用官方 WxLogin.js 在容器内嵌 iframe。
+ * self_redirect=false 时扫码授权后由顶层窗口回跳 redirect_uri（/wechat-callback）。
+ */
+async function renderWxLogin(d) {
+  if (!d || !d.appId || !d.redirectUri || !d.state) {
+    ElMessage.error('微信登录配置缺失，请联系管理员')
+    return
+  }
+  try {
+    await loadWxLoginScript()
+  } catch (e) {
+    ElMessage.error(e?.message || '微信登录脚本加载失败')
+    return
+  }
+  // WxLogin 只接受 DOM id，必须等容器挂载完成
+  for (let i = 0; i < 30 && !wxBox.value; i++) {
+    await new Promise(r => setTimeout(r, 100))
+  }
+  if (!wxBox.value) { console.warn('微信扫码容器未挂载'); return }
+  wxBox.value.innerHTML = ''
+  // eslint-disable-next-line no-new
+  new window.WxLogin({
+    self_redirect: false,
+    id: 'wx-login-container',
+    appid: d.appId,
+    scope: d.scope || 'snsapi_login',
+    redirect_uri: encodeURIComponent(d.redirectUri),
+    state: d.state,
+    style: 'black',
+    href: ''
+  })
+}
+
 async function newQr() {
   try {
     const d = await request.post('/auth/wechat/qrcode')
-    // 二维码内容优先用后端给的 qrContent（演示模式=可直接打开的确认页 URL），
-    // 退化为 state 字符串。必须传完整 URL，否则手机扫出来只是一串乱码。
-    qrContent.value = d.qrContent || d.state
     qrSession.value = d.state
     qrMode.value = d.mode || ''
     qrState.value = d.status || 'WAITING'
     qrText.value = qrTextMap[qrState.value] || qrState.value
     qrLeft.value = d.expireSeconds || d.expiresIn || 120
+    clearInterval(qrTimer)
+    clearInterval(qrCdTimer)
+
+    if (qrMode.value === 'real') {
+      // 真实微信：不画 canvas、不轮询。扫码后微信把 code/state 回跳到 /wechat-callback
+      wxInfo.value = d
+      qrContent.value = d.redirectUri || ''
+      await nextTick()
+      await renderWxLogin(d)
+      return
+    }
+
+    // 演示模式：二维码内容 = 平台自己的确认页 URL，手机打开后点确认
+    wxInfo.value = null
+    qrContent.value = d.qrContent || d.state
     await nextTick()
     // 等 Tab 过渡结束 & canvas 真正挂载
     await new Promise(r => setTimeout(r, 120))
     await nextTick()
     drawQr(qrContent.value)
-    clearInterval(qrCdTimer)
     qrCdTimer = setInterval(() => {
       if (--qrLeft.value <= 0) { clearInterval(qrCdTimer); qrState.value = 'EXPIRED'; qrText.value = '二维码已过期'; newQr() }
     }, 1000)
-    clearInterval(qrTimer)
     qrTimer = setInterval(pollQr, 2000)
   } catch (e) { console.warn('二维码生成失败', e) }
 }
@@ -387,19 +456,24 @@ async function doReset() {
 }
 
 onMounted(async () => {
-  // 预取扫码会话，切 Tab 后立即可绘制（避免懒渲染时序问题）
+  // 只在扫码 Tab 激活时初始化，避免 WxLogin 在隐藏容器里渲染
   if (tab.value === 'qr') newQr()
-  else setTimeout(() => { if (!qrSession.value) newQr() }, 600)
 })
 onBeforeUnmount(() => { clearInterval(qrTimer); clearInterval(qrCdTimer); clearInterval(cdTimer); clearInterval(fgTimer) })
 
 watch(tab, async (v) => {
   if (v !== 'qr') return
   await nextTick()
-  // el-tab-pane 懒渲染：切到扫码页后 canvas 才挂载，必须等 DOM 就绪再绘制
-  if (!qrSession.value) newQr()
-  else if (qrContent.value) drawQr(qrContent.value)
-  else newQr()
+  if (!qrSession.value) {
+    newQr()
+  } else if (qrMode.value === 'real') {
+    // 切回扫码页时容器已被重建，需要用同一个 state 重新挂载微信 iframe
+    if (wxInfo.value) await renderWxLogin(wxInfo.value)
+  } else if (qrContent.value) {
+    drawQr(qrContent.value)
+  } else {
+    newQr()
+  }
 })
 </script>
 
@@ -419,6 +493,9 @@ watch(tab, async (v) => {
 .qr-box { display: flex; flex-direction: column; align-items: center; padding: 6px 0 4px; }
 .qr-frame { position: relative; padding: 10px; border: 1px solid #e8eeff; border-radius: 10px; background: #fff; }
 .qr-frame canvas { display: block; }
+.qr-frame-real { padding: 0; border: none; }
+.wx-login-container { width: 300px; height: 400px; overflow: hidden; }
+.wx-login-container :deep(iframe) { display: block; }
 .qr-mask { position: absolute; inset: 10px; background: rgba(255,255,255,0.94); border-radius: 8px;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; font-size: 13px; color: #295FFF; }
 .qr-mask .ok { font-size: 34px; color: #00b42a; }

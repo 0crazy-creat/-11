@@ -40,6 +40,8 @@
         <h3 class="name">{{ c.name }}</h3>
         <p class="code">{{ c.code }}</p>
         <p class="desc">{{ c.description || '—' }}</p>
+        <p class="times">报名：{{ fmtShort(c.signupStart) }} ~ {{ fmtShort(c.signupEnd) }}</p>
+        <p class="times">比赛：{{ fmtShort(c.startAt) }} ~ {{ fmtShort(c.endAt) }}</p>
         <div class="foot">
           <span>上限 {{ c.maxPlayers }} 人</span>
           <el-button type="primary" link @click.stop="open(c)">{{ entryText(c) }}</el-button>
@@ -76,15 +78,14 @@ const matrixHint = computed(() => {
   if (r === 'JUDGE') return '当前角色：裁判 · 可见全部赛制，免报名，可只读查看全部靶机并审核题解'
   if (r === 'TEACHER') return '当前角色：教师 · 可见全部赛制，免报名，可查看本赛事靶机并审核题解'
   if (r === 'OBSERVER') return '当前角色：观察者 · 仅可查看公开赛事与实时分数（只读）'
-  return '当前角色：选手 · 仅可见已报名赛事，需报名后进入答题/启动容器'
+  return '当前角色：选手 · 可浏览全部赛事，赛前报名后方可进入答题/启动容器'
 })
 
 const filtered = computed(() => {
   const r = role.value
   let arr = list.value
-  // OBSERVER 只看公开赛事；PLAYER 只看已报名（后端已按角色过滤，这里兜底）
+  // 选手需先在大厅发现并报名赛事，因此不做"仅已报名"过滤；OBSERVER 只看公开赛事
   if (r === 'OBSERVER') arr = arr.filter(c => c.public !== false && c.visibility !== 'PRIVATE')
-  if (r === 'PLAYER') arr = arr.filter(c => c.joined === true || c.joined === undefined)
   return tab.value === 'all' ? arr : arr.filter(c => c.status === tab.value)
 })
 
@@ -93,6 +94,13 @@ function statusText(s) {
 }
 function statusClass(s) {
   return { RUNNING: 'is-running', SIGNUP: 'is-signup', FINISHED: 'is-done', ARCHIVED: 'is-done' }[s] || 'is-idle'
+}
+function fmtShort(t) {
+  if (!t) return '—'
+  const d = new Date(t)
+  if (Number.isNaN(d.getTime())) return String(t).replace('T', ' ').slice(0, 16)
+  const p = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
 /* ---- 六赛制唯一来源：constants/contestType.js，页面不再硬编码 ---- */
@@ -103,8 +111,12 @@ const FORMAT_ENTRY = {
 }
 function entryText(c) {
   const r = role.value
+  if (c.status === 'FINISHED' || c.status === 'ARCHIVED') return '查看赛况 →'
+  if (c.status !== 'RUNNING') {
+    return r === 'PLAYER' && !c.joined && c.status === 'SIGNUP' ? '报名参赛 →' : '查看详情 →'
+  }
   if (r === 'OBSERVER') return '查看实时分数 →'
-  if (r === 'PLAYER') return c.joined ? (FORMAT_ENTRY[String(c.type||'').toUpperCase()] || '进入赛事 →') : '报名参赛 →'
+  if (r === 'PLAYER') return c.joined ? (FORMAT_ENTRY[String(c.type||'').toUpperCase()] || '进入赛事 →') : '查看详情 →'
   return FORMAT_ENTRY[String(c.type||'').toUpperCase()] || '进入赛事 →'
 }
 function capabilities(c) {
@@ -128,8 +140,12 @@ async function load() {
   }
 }
 function open(c) {
-  // 统一走赛制注册表路由，AWD/AWDP → /awd/screen/:id，其余 → /portal/**/:id
-  router.push(contestEntryRoute(c))
+  // 进行中且已报名才直达赛场；未报名选手进详情页（赛前看信息/报名，赛后看赛题与最终排名）
+  if (c.status === 'RUNNING' && (role.value !== 'PLAYER' || c.joined)) {
+    router.push(contestEntryRoute(c))
+    return
+  }
+  router.push(`/portal/contests/${c.id}`)
 }
 onMounted(load)
 </script>
@@ -149,6 +165,7 @@ onMounted(load)
 .name { font-size: 16px; font-weight: 600; color: var(--csp-title); margin: 0 0 4px }
 .code { font-size: 12px; color: #86909c; margin: 0 0 8px }
 .desc { font-size: 13px; color: #4e5969; min-height: 36px; margin: 0 0 12px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical }
+.times { font-size: 12px; color: #86909c; margin: 0 0 2px }
 .foot { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #86909c }
 .caps { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px }
 .fmt-hint { font-size: 12px; color: #86909c; margin: 4px 0 0; line-height: 1.5 }

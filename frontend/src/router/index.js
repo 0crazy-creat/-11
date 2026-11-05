@@ -36,6 +36,7 @@ const consoleRoutes = [
   { path: '', name: 'console-home', component: () => import('@/views/console/Dashboard.vue'), meta: { title: '控制台', perm: null } },
   { path: 'contests', name: 'admin-contests', component: () => import('@/views/contest/ContestList.vue'), meta: { title: '赛事管理', perm: 'contest:create' } },
   { path: 'contests/:id', name: 'admin-contest-detail', component: () => import('@/views/contest/ContestDetail.vue'), props: true, meta: { title: '赛事详情', perm: 'contest:update' } },
+  { path: 'awd', name: 'admin-awd', component: () => import('@/views/console/AwdManage.vue'), meta: { title: 'AWD 管理', perm: 'contest:update' } },
   { path: 'question-bank', name: 'admin-question-bank', component: () => import('@/views/console/QuestionBank.vue'), meta: { title: '全局题库', perm: 'question:create' } },
   { path: 'challenges', name: 'admin-challenges', component: () => import('@/views/contest/ChallengeManage.vue'), meta: { title: '赛事题目管理', perm: 'question:create' } },
   { path: 'teams', name: 'admin-teams', component: () => import('@/views/contest/TeamList.vue'), meta: { title: '战队管理', perm: 'team:manage' } },
@@ -56,6 +57,7 @@ const consoleRoutes = [
 const routes = [
   { path: '/login', name: 'login', component: () => import('@/views/auth/Login.vue'), meta: { public: true } },
   { path: '/qr-confirm', name: 'qr-confirm', component: () => import('@/views/auth/QrConfirm.vue'), meta: { public: true, title: '扫码确认' } },
+  { path: '/wechat-callback', name: 'wechat-callback', component: () => import('@/views/auth/WechatCallback.vue'), meta: { public: true, title: '微信登录' } },
   { path: '/', redirect: '/portal' },
 
   // ===== 选手端 =====

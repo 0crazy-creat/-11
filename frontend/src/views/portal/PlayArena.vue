@@ -8,16 +8,22 @@
           <span class="csp-status" :class="{'is-running': contest.status==='RUNNING'}">{{ statusText(contest.status) }}</span>
           <span v-if="contest.code"> · {{ contest.code }}</span>
         </p>
+        <p class="csp-text-secondary time-range">
+          报名：{{ fmtTime(contest.signupStart) }} ~ {{ fmtTime(contest.signupEnd) }}
+          &nbsp;·&nbsp;
+          比赛：{{ fmtTime(contest.startAt) }} ~ {{ fmtTime(contest.endAt) }}
+        </p>
       </div>
       <div class="head-actions">
         <el-button v-if="canEnroll && !myTeam" type="primary" @click="enrollVisible = true">报名参赛</el-button>
         <el-tag v-if="myTeam" type="success" effect="light">已报名：{{ myTeam.name }}</el-tag>
-        <el-button v-if="myTeam" text @click="enrollVisible = true">报名详情</el-button>
+        <el-button v-if="myTeam && contest.status === 'SIGNUP'" text @click="enrollVisible = true">报名详情</el-button>
         <el-button @click="$router.push(`/rank/${contestId}`)">排行榜</el-button>
       </div>
     </div>
 
     <el-alert v-if="errMsg" :title="errMsg" type="warning" show-icon :closable="false" class="mb16" />
+    <el-alert v-if="!myTeam && !canEnroll && !isAdmin" :title="enrollHint" type="info" show-icon :closable="false" class="mb16" />
 
     <el-row :gutter="16" class="mt16">
       <el-col :span="24">
@@ -120,13 +126,16 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { CircleCheckFilled, Monitor, VideoPlay, Paperclip, Timer } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import EnrollDialog from '@/components/contest/EnrollDialog.vue'
+import { useUserStore } from '@/store/user'
 
 const route = useRoute()
+const router = useRouter()
+const user = useUserStore()
 const contestId = computed(() => route.params.contestId)
 const contest = ref({})
 const challenges = ref([])
@@ -151,10 +160,24 @@ const targetCountdown = computed(() => {
   return `${h}:${m}:${sec}`
 })
 
-const canEnroll = computed(() => ['SIGNUP', 'RUNNING', 'PENDING'].includes(contest.value.status))
+const isAdmin = computed(() => user.isAdmin)
+/** 仅赛前开放报名：SIGNUP 且在报名时间区间内，与后端 ContestGuard 保持一致。 */
+const canEnroll = computed(() => {
+  if (String(contest.value.status || '').toUpperCase() !== 'SIGNUP') return false
+  const now = Date.now()
+  if (contest.value.signupStart && now < new Date(contest.value.signupStart).getTime()) return false
+  if (contest.value.signupEnd && now > new Date(contest.value.signupEnd).getTime() && contest.value.allowLate !== 1) return false
+  return true
+})
+const running = computed(() => String(contest.value.status || '').toUpperCase() === 'RUNNING')
+const enrollHint = computed(() => running.value ? '比赛已开始，报名已截止' : '当前不在报名开放时间内')
 
 function statusText(s) {
   return { DRAFT: '筹备中', PENDING: '未开始', SIGNUP: '报名中', RUNNING: '进行中', FINISHED: '已结束', ARCHIVED: '已归档' }[s] || s || '—'
+}
+function fmtTime(t) {
+  if (!t) return '—'
+  return new Date(t).toLocaleString('zh-CN')
 }
 function render(md) {
   return String(md).replace(/[<>&]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[m])).replace(/\n/g, '<br/>')
@@ -166,6 +189,13 @@ async function load() {
     const data = await request.get(`/contests/${contestId.value}`)
     contest.value = data || {}
   } catch (e) { errMsg.value = '赛事信息加载失败：' + (e?.message || '') }
+
+  // 未开赛或已结束：选手/观众回到详情页看赛事信息或最终成绩，不进入答题界面
+  const st = String(contest.value.status || '').toUpperCase()
+  if (!isAdmin.value && st && st !== 'RUNNING') {
+    router.replace(`/portal/contests/${contestId.value}`)
+    return
+  }
 
   try {
     const data = await request.get(`/ctf/contests/${contestId.value}/challenges/play`)
@@ -322,6 +352,7 @@ onBeforeUnmount(stopTargetTimer)
 .mb16 { margin-bottom: 16px }
 .mt16 { margin-top: 16px }
 .csp-page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px }
+.time-range { margin-top: 4px; font-size: 12px }
 .head-actions { display: flex; gap: 8px; align-items: center }
 .panel { border-radius: 12px }
 .panel-title { font-weight: 600; color: var(--csp-title) }

@@ -313,8 +313,9 @@ async function save() {
         } : {})
       })
     }
-    if (form.id) await challengeApi.update(form.id, payload)
-    else await challengeApi.create(payload)
+    // 赛事题目走 /ctf/contests/{contestId}/challenges，不能用全局 /ctf/challenges（不存在，会 405）
+    if (form.id) await challengeApi.adminUpdate(contestId.value, form.id, payload)
+    else await challengeApi.adminCreate(contestId.value, payload)
     ElMessage.success('已保存')
     visible.value = false
     load()
@@ -327,7 +328,7 @@ async function remove(row) {
     '提示',
     { type: 'warning' }
   )
-  await challengeApi.remove(row.id)
+  await challengeApi.adminRemove(contestId.value, row.id)
   ElMessage.success('已从赛事移除')
   await load()
 }

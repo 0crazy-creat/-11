@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # 全量接口发包/收包验证：模拟浏览器点击，逐一请求并校验响应
-BASE="${BASE:-http://localhost:11001}"
+# Docker 部署下 nginx(:80) 同时提供 SPA 与 /api 反代；run-11001.sh 单端口模式用 BASE=http://localhost:11001
+BASE="${BASE:-http://localhost}"
+# Windows Git Bash 里 python3 常是微软商店空壳（执行后无输出），会让 JSON 解析静默失败
+PY="$(command -v python || command -v python3)"
 TMP=$(mktemp -d)
 PASS=0; FAIL=0; SKIP=0
 SUF=$(date +%s)
@@ -12,28 +15,33 @@ bad()  { FAIL=$((FAIL+1)); FAILURES+=("$1"); printf '  ❌ %s\n' "$1"; }
 skip() { SKIP=$((SKIP+1)); printf '  ⏭  %s\n' "$1"; }
 
 # req METHOD PATH [BODY] -> 输出响应体到 $TMP/last.json，返回 http code
+# 请求体走文件而非 -d 参数：Git Bash 的 mingw curl 会把命令行里的中文按 GBK 往返，服务端 JSON 解析直接 400
 req() {
   local method="$1" path="$2" body="${3:-}"
   local args=(-s -o "$TMP/last.json" -w '%{http_code}' -X "$method" "$BASE$path")
   [ -n "$TOKEN" ] && args+=(-H "Authorization: Bearer $TOKEN")
-  [ -n "$body" ] && args+=(-H 'Content-Type: application/json' -d "$body")
+  if [ -n "$body" ]; then
+    printf '%s' "$body" > "$TMP/body.json"
+    args+=(-H 'Content-Type: application/json' --data-binary "@$TMP/body.json")
+  fi
   curl "${args[@]}"
 }
 
 # check NAME METHOD PATH [BODY] [EXPECT_CODE]
+# 解析响应的 python 一律通过 argv 拿路径：写在源码里的 /tmp 路径 Windows python 读不到
 check() {
   local name="$1" method="$2" path="$3" body="${4:-}" want="${5:-0}"
   local code; code=$(req "$method" "$path" "$body")
-  local rcode; rcode=$(python3 -c "import json;print(json.load(open('$TMP/last.json')).get('code','-'))" 2>/dev/null || echo "-")
+  local rcode; rcode=$("$PY" -c 'import json,sys;print(json.load(open(sys.argv[1])).get("code","-"))' "$TMP/last.json" 2>/dev/null || echo "-")
   if [ "$rcode" = "$want" ]; then
     ok "$name [HTTP $code / code $rcode]"
   else
-    local msg; msg=$(python3 -c "import json;d=json.load(open('$TMP/last.json'));print(d.get('message','')[:60])" 2>/dev/null || echo "非JSON")
+    local msg; msg=$("$PY" -c 'import json,sys;print(str(json.load(open(sys.argv[1])).get("message",""))[:60])' "$TMP/last.json" 2>/dev/null || echo "非JSON")
     bad "$name [HTTP $code / code $rcode] $msg"
   fi
 }
 
-jget() { python3 -c "import json,sys;d=json.load(open('$TMP/last.json'));print(eval('d'+sys.argv[1]))" "$1" 2>/dev/null; }
+jget() { "$PY" -c 'import json,sys;d=json.load(open(sys.argv[1]));print(eval("d"+sys.argv[2]))' "$TMP/last.json" "$1" 2>/dev/null; }
 
 log "════════════════════════════════════════════════════════════════"
 log "  全量接口发包/收包验证  BASE=$BASE"
@@ -46,18 +54,19 @@ TOKEN=""
 check "POST /auth/register 注册"  POST /api/auth/register "{\"username\":\"ft$SUF\",\"password\":\"Full@12345\",\"nickname\":\"全量测试\"}" 0
 NEWTOKEN=$(jget "['data']['accessToken']")
 [ -n "$NEWTOKEN" ] && ok "注册返回 token" || bad "注册未返回 token"
+# 改密只作用于本步骤新注册的 ft$SUF：admin 凭据是交接资产，任何测试都不得改动
+TOKEN=$NEWTOKEN
+check "POST /auth/password 改密" POST /api/auth/password '{"oldPassword":"Full@12345","newPassword":"Full@99999"}' 0
+check "POST /auth/login 改密后重登" POST /api/auth/login "{\"username\":\"ft$SUF\",\"password\":\"Full@99999\"}" 0
+TOKEN=""
 check "POST /auth/login 登录"    POST /api/auth/login    '{"username":"admin","password":"Admin@123"}' 0
 TOKEN=$(jget "['data']['accessToken']")
 REFRESH=$(jget "['data']['refreshToken']")
+ADMIN_LOGIN_OK=0
+[ -n "$TOKEN" ] && ADMIN_LOGIN_OK=1
 [ -n "$TOKEN" ] && ok "登录返回 accessToken" || bad "登录未返回 token"
 check "GET  /auth/me 当前用户"   GET  /api/auth/me 2>/dev/null
 check "POST /auth/refresh 刷新"  POST /api/auth/refresh "{\"refreshToken\":\"$REFRESH\"}" 0
-# 改密用新注册用户，避免污染 admin 凭据
-# 改密：用 admin 自身验证接口可用（旧密码正确时成功改回）
-_save=$TOKEN
-check "POST /auth/password 改密" POST /api/auth/password '{"oldPassword":"Admin@123","newPassword":"Admin@999"}' 0
-# 注：改密后旧 token 失效，admin 密码由测试脚本末尾的 DB 复位保障
-TOKEN=$_save
 check "POST /auth/logout 登出"   POST /api/auth/logout 2>/dev/null
 
 # ── 阶段 2：RBAC ────────────────────────────────────────────────
@@ -179,14 +188,18 @@ log ""
 log "▶ 阶段 12：清理与越权校验"
 check "DELETE /roles/$NEWROLE 删角色" DELETE "/api/roles/$NEWROLE" 2>/dev/null
 check "DELETE /questions/$QID 删题" DELETE "/api/questions/$QID" 2>/dev/null
-NOAUTH=$(curl -s "$BASE/api/users?page=1&size=1" | python3 -c "import json,sys;print(json.load(sys.stdin).get('code'))" 2>/dev/null)
+NOAUTH=$(curl -s "$BASE/api/users?page=1&size=1" | "$PY" -c "import json,sys;print(json.load(sys.stdin).get('code'))" 2>/dev/null)
 [ "$NOAUTH" = "401" ] && ok "未带 token 访问受保护接口 -> code 401" || bad "未带 token 应为 code 401，实际 $NOAUTH"
 
-# 复位 admin 密码，保证人工验收可登录
-NEWHASH=$(python3 -c "import bcrypt;print(bcrypt.hashpw(b'Admin@123', bcrypt.gensalt(rounds=10)).decode())" 2>/dev/null)
-if [ -n "$NEWHASH" ]; then
-  docker exec csp-mysql mysql -uroot -pcsp_root_2026 -D csp -e "UPDATE sys_user SET password='$NEWHASH' WHERE username='admin';" 2>/dev/null
-  log "  🔑 admin 密码已复位为 Admin@123"
+# 兜底复位 admin 口令：本脚本已不改动 admin，仅当登录基线失败时执行
+# 直接套用仓库里的固定哈希，不依赖 python3/bcrypt（原实现缺库时静默跳过，正是口令漂移的根因）
+if [ "${ADMIN_LOGIN_OK:-0}" != "1" ]; then
+  FIX_SQL="$(cd "$(dirname "$0")/../sql" && pwd)/fix_admin_password.sql"
+  if [ -f "$FIX_SQL" ]; then
+    docker exec -i csp-mysql mysql -uroot -pcsp_root_2026 csp < "$FIX_SQL" 2>/dev/null \
+      && log "  🔑 admin 口令已复位为 Admin@123（$FIX_SQL）" \
+      || log "  ⚠️  复位失败，请手工执行：$FIX_SQL"
+  fi
 fi
 
 log ""

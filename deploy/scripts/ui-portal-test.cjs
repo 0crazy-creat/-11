@@ -1,7 +1,8 @@
 // 选手端真实点击验证：登录 -> 赛事大厅 -> 进入赛事 -> 看到题目
 const { chromium } = require('/home/ai/网安平台项目/frontend/node_modules/playwright-core')
 
-const BASE = 'http://127.0.0.1:11001'
+// 默认走 Docker 部署入口（csp-frontend nginx :80）；单端口模式设 BASE=http://127.0.0.1:11001
+const BASE = process.env.BASE || 'http://127.0.0.1'
 ;(async () => {
   const browser = await chromium.launch({
     executablePath: '/home/ai/网安平台项目/.toolchain/pw-browsers/chromium-1140/chrome-linux/chrome',

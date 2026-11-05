@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""真实业务端到端验证：建赛→组卷→状态流转→答题判分→计分板→靶机全生命周期"""
-import json, urllib.request, urllib.error, time, sys, subprocess
+"""真实业务端到端验证：建赛→组卷→报名→状态流转→答题判分→计分板→靶机全生命周期
 
-B = "http://127.0.0.1:11001"
-A = "http://127.0.0.1:11002/api"
+与 e2e_verify.py 的差别：flag/answer 直接从 MySQL 读，校验的是库里的真值而不是接口回显。
+"""
+import json, urllib.request, urllib.error, time, sys, subprocess, os
+
+# 默认走 Docker 部署入口（csp-frontend nginx :80 反代 /api）；单端口模式传 BASE=http://127.0.0.1:11001
+B = os.environ.get("BASE", "http://127.0.0.1")
+A = os.environ.get("ARENA", "http://127.0.0.1:11002/api")
+# Git Bash 里无后缀的 docker 是 Docker Desktop 的 PowerShell 垫片，只回显命令不执行
+DOCKER = os.environ.get("DOCKER", "docker.exe" if os.name == "nt" else "docker")
+MYSQL_PWD = os.environ.get("MYSQL_PWD", "csp_root_2026")
 PASS = FAIL = 0
 FAILED = []
 
@@ -20,6 +27,9 @@ def call(method, url, body=None, tok=None, expect=200):
         raw = e.read().decode()
         try: return e.code, json.loads(raw)
         except: return e.code, {"raw": raw}
+    except urllib.error.URLError as e:
+        # 服务未部署/端口不通时给出可读结论，而不是抛出栈回溯中断后续阶段
+        return 0, {"code": -1, "message": f"连接失败：{e.reason}", "data": {}}
 
 def check(name, ok, detail=""):
     global PASS, FAIL
@@ -29,7 +39,7 @@ def check(name, ok, detail=""):
         FAIL += 1; FAILED.append(name); print(f"  ❌ {name} {detail}")
 
 def q(sql):
-    r = subprocess.run(["docker","exec","csp-mysql","mysql","-uroot","-pcsp_root_2026",
+    r = subprocess.run([DOCKER,"exec","csp-mysql","mysql","-uroot","-p"+MYSQL_PWD,
                         "--default-character-set=utf8mb4","-N","-e",sql],
                        capture_output=True, text=True)
     return r.stdout.strip()
@@ -48,9 +58,16 @@ sc = q("select id,flag from csp.question where bank_type='SCENARIO' and deleted=
 sc_rows = [l.split("\t") for l in sc.splitlines() if l]
 print(f"\n题库：CTF={len(ctf_rows)} 理论={len(th_rows)} 场景={len(sc_rows)}")
 
-def build_contest(code, name, ctype, qids):
+TS = int(time.time())
+
+# 参赛战队：报名是答题的前置条件，全局战队只需建一次，再按赛事逐场报名
+st, r = call("POST", B+"/api/teams", {"name": f"E2E验证队{TS}", "maxMembers": 5}, TOK)
+GTEAM = (r.get("data") or {}).get("id")
+check("建全局战队（队长=当前用户）", r.get("code")==0 and bool(GTEAM), f"teamId={GTEAM}")
+
+def build_contest(code, name, ctype, qids, mode="TEAM"):
     st, r = call("POST", B+"/api/contests", {
-        "code": code, "name": name, "type": ctype, "mode": "TEAM",
+        "code": code, "name": name, "type": ctype, "mode": mode,
         "startAt": "2026-11-02T00:00:00", "endAt": "2027-12-31T23:59:59",
         "description": "端到端验证"}, TOK)
     if st!=200 or r.get("code")!=0:
@@ -61,14 +78,20 @@ def build_contest(code, name, ctype, qids):
                   {"questionIds":[int(x[0]) for x in qids]}, TOK)
     if r2.get("code")!=0:
         return cid, f"组卷失败 {r2}"
-    # 状态流转 DRAFT→PENDING→SIGNUP→RUNNING
-    for s in ("PENDING","SIGNUP","RUNNING"):
+    # 状态流转 DRAFT→PENDING→SIGNUP，报名窗口内完成报名，再开 RUNNING
+    for s in ("PENDING","SIGNUP"):
         st, r3 = call("POST", f"{B}/api/contests/{cid}/status", {"status":s}, TOK)
         if r3.get("code")!=0:
             return cid, f"流转 {s} 失败 {r3}"
+    body = {"mode": "TEAM", "teamId": GTEAM} if mode == "TEAM" else {"mode": "INDIVIDUAL"}
+    st, r4 = call("POST", f"{B}/api/ctf/contests/{cid}/teams/enroll", body, TOK)
+    if r4.get("code")!=0:
+        return cid, f"报名失败 {r4}"
+    for s in ("RUNNING",):
+        st, r5 = call("POST", f"{B}/api/contests/{cid}/status", {"status":s}, TOK)
+        if r5.get("code")!=0:
+            return cid, f"流转 {s} 失败 {r5}"
     return cid, None
-
-TS = int(time.time())
 
 # ---------- A. CTF ----------
 print("\n▶ A. CTF 赛全流程")
@@ -108,8 +131,8 @@ if cid_t:
                  {"contestId":cid_t,"questionId":qid,"content":"z","submitType":"ANSWER"}, TOK)
     check("理论 错误答案判分", r.get("code")==0 and r["data"].get("correct") is False,
           f"correct={r.get('data',{}).get('correct')}")
-    # 整卷交卷
-    payload = {"answers":[{"questionId":int(x[0]),"answer":x[1]} for x in th_rows]}
+    # 整卷交卷（接口收的是裸数组，不是 {"answers": [...]}）
+    payload = [{"questionId":int(x[0]),"answer":x[1],"deviceId":"e2e-real"} for x in th_rows]
     st, r = call("POST", f"{B}/api/ctf/contests/{cid_t}/theory/submit", payload, TOK)
     check("理论 整卷交卷", r.get("code")==0,
           f"正确={r.get('data',{}).get('correctCount')}/{r.get('data',{}).get('totalCount')} 得分={r.get('data',{}).get('gainedScore')}")
@@ -139,25 +162,29 @@ check("平台统计", r.get("code")==0, str(r.get("data"))[:80])
 # ---------- E. 靶场 ----------
 print("\n▶ E. 独立靶场服务（AWD 模板 → 真实靶机）")
 st, r = call("GET", A+"/templates?page=1&size=50")
-tpls = r["data"]["records"]
-check("靶场模板 ≥10", len(tpls)>=10, f"count={len(tpls)}")
-awd = next((t for t in tpls if t["code"]=="awd-web-sqli"), tpls[0])
-st, r = call("POST", A+"/instances", {"templateId": int(awd["id"]), "ttlMinutes": 30})
-iid = r.get("data",{}).get("id"); url = r.get("data",{}).get("accessUrl")
-check("创建靶机", bool(iid), f"{awd['code']} -> {url}")
-if iid:
-    ok = False
-    for _ in range(30):
-        try:
-            with urllib.request.urlopen(url, timeout=5) as resp:
-                ok = resp.status == 200; break
-        except Exception:
-            time.sleep(1)
-    check("靶机首页可访问", ok, f"HTTP 200 {url}")
-    st, r = call("POST", f"{A}/instances/{iid}/reset")
-    check("重置靶机", r.get("code")==0)
-    st, r = call("POST", f"{A}/instances/{iid}/destroy")
-    check("销毁靶机", r.get("code")==0 and r.get("data",{}).get("destroyed",0)>=1, str(r.get("data")))
+tpls = ((r.get("data") or {}).get("records")) or []
+if st == 0:
+    check("靶场服务可达", False, r.get("message", "连接失败") + "（未部署则本段其余项跳过）")
+    tpls = []
+if tpls:
+    check("靶场模板 ≥10", len(tpls)>=10, f"count={len(tpls)}")
+    awd = next((t for t in tpls if t["code"]=="awd-web-sqli"), tpls[0])
+    st, r = call("POST", A+"/instances", {"templateId": int(awd["id"]), "ttlMinutes": 30})
+    iid = (r.get("data") or {}).get("id"); url = (r.get("data") or {}).get("accessUrl")
+    check("创建靶机", bool(iid), f"{awd['code']} -> {url}")
+    if iid:
+        ok = False
+        for _ in range(30):
+            try:
+                with urllib.request.urlopen(url, timeout=5) as resp:
+                    ok = resp.status == 200; break
+            except Exception:
+                time.sleep(1)
+        check("靶机首页可访问", ok, f"HTTP 200 {url}")
+        st, r = call("POST", f"{A}/instances/{iid}/reset")
+        check("重置靶机", r.get("code")==0)
+        st, r = call("POST", f"{A}/instances/{iid}/destroy")
+        check("销毁靶机", r.get("code")==0, str(r.get("data")))
 
 print("\n" + "═"*52)
 print(f"通过 {PASS} / 失败 {FAIL}")

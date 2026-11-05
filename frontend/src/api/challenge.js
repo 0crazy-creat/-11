@@ -37,6 +37,16 @@ export function submitPracticeFlag(challengeId, flag) {
   })
 }
 
+/** 我的练习统计（积分 / 已解出 / 提交次数 / 正确率） */
+export function getPracticeStats() {
+  return request({ url: '/practice/stats', method: 'get' })
+}
+
+/** 练习排行榜 */
+export function getPracticeLeaderboard(limit = 10) {
+  return request({ url: '/practice/leaderboard', method: 'get', params: { limit } })
+}
+
 /**
  * 练习容器接口（无赛事上下文，后端 PracticeController）
  * 后端：/api/practice/challenges/{id}/container*（需登录）

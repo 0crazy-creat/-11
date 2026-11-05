@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.stream.Collectors;
 
@@ -72,6 +73,18 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public Result<Void> handleNoHandler(NoHandlerFoundException e) {
         return Result.fail(ResultCode.NOT_FOUND, "接口不存在：" + e.getRequestURL());
+    }
+
+    /**
+     * Spring Boot 3.2+ 未命中的路径由静态资源处理器抛 NoResourceFoundException。
+     * 不单独处理会落到 Exception 分支，把「接口不存在」伪装成 HTTP 200 + code 500「系统繁忙」，
+     * 排障时无法区分写错的 URL 与真实的服务端崩溃。
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Result<Void> handleNoResource(NoResourceFoundException e, HttpServletRequest req) {
+        log.warn("[接口不存在] {} {}", req.getMethod(), req.getRequestURI());
+        return Result.fail(ResultCode.NOT_FOUND, "接口不存在：" + req.getRequestURI());
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)

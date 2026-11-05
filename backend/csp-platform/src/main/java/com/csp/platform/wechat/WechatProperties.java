@@ -19,10 +19,12 @@ public class WechatProperties {
     private String appId = "";
     /** 微信开放平台网站应用 AppSecret */
     private String appSecret = "";
-    /** 扫码回调地址（须与开放平台配置一致），默认指向登录页 */
-    private String redirectUri = "http://127.0.0.1:11001/login";
+    /** 扫码回调地址（须与开放平台配置一致），默认指向微信回调页 */
+    private String redirectUri = "http://127.0.0.1:11001/wechat-callback";
     /** 二维码会话有效期（秒） */
     private int qrExpireSeconds = 300;
+    /** 微信 API 基础地址（一般无需修改；本地联调可指向代理/Stub） */
+    private String apiBase = "https://api.weixin.qq.com";
 
     public boolean isReal() {
         return appId != null && !appId.isBlank() && appSecret != null && !appSecret.isBlank();

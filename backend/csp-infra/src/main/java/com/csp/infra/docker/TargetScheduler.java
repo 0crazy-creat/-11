@@ -28,12 +28,14 @@ public class TargetScheduler {
     private volatile Boolean dockerReady;
 
     @Autowired
-    public TargetScheduler(@Autowired(required = false) DockerClient dockerClient, DockerProperties props) {
-        this.dockerClient = dockerClient;
+    public TargetScheduler(@Autowired(required = false) ContainerProvider provider, DockerProperties props) {
         this.props = props;
-        if (dockerClient == null) {
+        // 复用 ContainerProvider 已初始化的 DockerClient；直接注入 DockerClient 拿不到（无对应 Bean），
+        // 会导致 AWD 靶机全部走模拟模式、SSH 端口无法映射。
+        this.dockerClient = provider == null ? null : provider.getDockerClient();
+        if (this.dockerClient == null) {
             this.dockerReady = false;
-            log.info("Docker 未启用，靶场调度将使用模拟模式");
+            log.warn("Docker 不可用，靶场调度将使用模拟模式（检查 docker.sock 与 csp.docker 配置）");
         }
     }
 
@@ -114,9 +116,18 @@ public class TargetScheduler {
             String networkName = ensureNetwork(spec.getContestId());
             int hostPort = allocatePort();
 
-            List<ExposedPort> exposed = List.of(ExposedPort.tcp(spec.getContainerPort()));
+            List<ExposedPort> exposed = new ArrayList<>();
+            exposed.add(ExposedPort.tcp(spec.getContainerPort()));
             Ports portBindings = new Ports();
-            portBindings.bind(exposed.get(0), Ports.Binding.bindPort(hostPort));
+            portBindings.bind(ExposedPort.tcp(spec.getContainerPort()), Ports.Binding.bindPort(hostPort));
+
+            // 额外映射 SSH 端口，供选手连接自己的靶机
+            int sshHostPort = 0;
+            if (spec.getSshPort() > 0 && spec.getSshPort() != spec.getContainerPort()) {
+                sshHostPort = allocatePort();
+                exposed.add(ExposedPort.tcp(spec.getSshPort()));
+                portBindings.bind(ExposedPort.tcp(spec.getSshPort()), Ports.Binding.bindPort(sshHostPort));
+            }
 
             // 关键：自定义 bridge 网络必须用 Ports.Binding.bindPort 显式绑定并指定 hostIp，
             // 且 NetworkMode 只能写网络名（不是 ID），否则 Docker 会忽略端口映射导致容器不可达。
@@ -154,6 +165,7 @@ public class TargetScheduler {
                     .containerName(spec.containerName())
                     .host("127.0.0.1")
                     .port(hostPort)
+                    .sshPort(sshHostPort)
                     .ip(resolveIp(cid, networkName))
                     .status("RUNNING")
                     .simulated(false)

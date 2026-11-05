@@ -5,7 +5,8 @@
 const path = require('path')
 const { chromium } = require('/home/ai/网安平台项目/frontend/node_modules/playwright-core')
 
-const BASE = 'http://127.0.0.1:11001'
+// 默认走 Docker 部署入口（csp-frontend nginx :80）；单端口模式设 BASE=http://127.0.0.1:11001
+const BASE = process.env.BASE || 'http://127.0.0.1'
 const CHROME = '/home/ai/网安平台项目/.toolchain/pw-browsers/chromium-1140/chrome-linux/chrome'
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))

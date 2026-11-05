@@ -34,7 +34,6 @@ export const authApi = {
 // ===== 赛事 =====
 export const listContests = (params) => request.get('/contests', { params })
 export const getContest = (id) => request.get(`/contests/${id}`)
-export const joinContest = (id) => request.post(`/contests/${id}/join`)
 export const createContest = (data) => request.post('/contests', data)
 export const updateContest = (id, data) => request.put(`/contests/${id}`, data)
 export const removeContest = (id) => request.delete(`/contests/${id}`)
@@ -45,7 +44,6 @@ export const contestApi = {
   create: createContest,
   update: updateContest,
   remove: removeContest,
-  join: joinContest,
   changeStatus: (id, data) => request.post(`/contests/${id}/status`, data),
   getByCode: (code) => request.get(`/contests/code/${code}`),
   bindQuestions: (id, data) => request.post(`/contests/${id}/questions`, data),
@@ -110,6 +108,12 @@ export const challengeApi = {
 
 export const rankApi = {
   list: (params) => getScoreboard(params?.contestId ?? params),
+  top: (contestId, topN = 50) => request.get(`/ctf/contests/${contestId}/scoreboard`, { params: { topN } }),
+  detail: (contestId, params) => request.get(`/ctf/contests/${contestId}/scoreboard/detail`, { params }),
+  stages: (contestId, params) => request.get(`/ctf/contests/${contestId}/scoreboard/stages`, { params }),
+  stage: (contestId, params) => request.get(`/ctf/contests/${contestId}/scoreboard/stage`, { params }),
+  firstBlood: (contestId) => request.get(`/ctf/contests/${contestId}/scoreboard/first-blood`),
+  timeline: (contestId, params) => request.get(`/ctf/contests/${contestId}/scoreboard/timeline`, { params }),
   myScore: (contestId) => request.get(`/ctf/contests/${contestId}/scoreboard/mine`),
   refresh: (contestId) => request.post(`/ctf/contests/${contestId}/scoreboard/refresh`)
 }
@@ -150,6 +154,7 @@ export const teamApi = {
   browse: (params) => request.get('/teams/browse', { params }),
   join: (inviteCode) => request.post('/teams/join', null, { params: { inviteCode } }),
   detail: (id) => request.get(`/teams/${id}`),
+  profile: (id) => request.get(`/teams/${id}/profile`),
   members: (id) => request.get(`/teams/${id}/members`),
   update: (id, data) => request.put(`/teams/${id}`, data),
   quit: (id) => request.delete(`/teams/${id}/members/me`),
@@ -250,7 +255,9 @@ export const archiveApi = {
 export const exportApi = {
   submissionsCsv: (params) => request.get('/export/submissions.csv', { params, responseType: 'blob' }),
   submissionsXlsx: (params) => request.get('/export/submissions.xlsx', { params, responseType: 'blob' }),
-  writeupsCsv: (params) => request.get('/export/writeups.csv', { params, responseType: 'blob' })
+  writeupsCsv: (params) => request.get('/export/writeups.csv', { params, responseType: 'blob' }),
+  scoreboardCsv: (params) => request.get('/export/scoreboard.csv', { params, responseType: 'blob' }),
+  scoreboardXlsx: (params) => request.get('/export/scoreboard.xlsx', { params, responseType: 'blob' })
 }
 
 // ===== 统计 =====

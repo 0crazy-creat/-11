@@ -9,7 +9,10 @@ import com.csp.ctf.judge.QuestionExt;
 import com.csp.ctf.service.ContainerLifecycleService;
 import com.csp.infra.docker.ContainerStatus;
 import com.csp.infra.docker.NetworkMode;
+import com.csp.common.security.LoginUser;
+import com.csp.platform.entity.PracticeSubmission;
 import com.csp.platform.entity.Question;
+import com.csp.platform.mapper.PracticeSubmissionMapper;
 import com.csp.platform.mapper.QuestionMapper;
 import com.csp.security.core.UserContext;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,8 +25,11 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 题目练习接口（公开，无需权限）。
@@ -35,6 +41,7 @@ import java.util.Map;
 public class PracticeController {
 
     private final QuestionMapper questionMapper;
+    private final PracticeSubmissionMapper practiceSubmissionMapper;
     private final ContainerLifecycleService lifecycleService;
     private final HttpServletRequest httpRequest;
 
@@ -80,14 +87,25 @@ public class PracticeController {
         Page<Question> pageParam = new Page<>(page, pageSize);
         Page<Question> result = questionMapper.selectPage(pageParam, wrapper);
         
+        // 标记当前用户是否已解出（未登录则全部 false）
+        LoginUser loginUser = UserContext.get();
+        Set<Long> solvedIds = new HashSet<>();
+        if (loginUser != null && loginUser.getUserId() != null) {
+            practiceSubmissionMapper.selectList(new LambdaQueryWrapper<PracticeSubmission>()
+                            .eq(PracticeSubmission::getUserId, loginUser.getUserId())
+                            .eq(PracticeSubmission::getCorrect, 1))
+                    .forEach(s -> solvedIds.add(s.getQuestionId()));
+        }
+
         // 隐藏敏感字段（flag / 答案 / 题解）
         // 注意：writeup 正文中常直接包含 flag，必须一并置空，否则列表接口会泄漏答案
         result.getRecords().forEach(q -> {
             q.setFlag(null);
             q.setAnswer(null);
             q.setWriteup(null);
+            q.setSolved(solvedIds.contains(q.getId()));
         });
-        
+
         return Result.ok(result);
     }
 
@@ -134,11 +152,95 @@ public class PracticeController {
         }
 
         boolean correct = input.trim().equals(question.getFlag().trim());
-        return Result.ok(Map.of(
-                "correct", correct,
-                "message", correct ? "答案正确！" : "Flag 不正确，请重试",
-                "score", correct ? (question.getScore() == null ? 0 : question.getScore()) : 0
-        ));
+
+        LoginUser loginUser = UserContext.get();
+        Long userId = loginUser == null ? null : loginUser.getUserId();
+
+        int gained = 0;
+        boolean alreadySolved = false;
+        long solvedCount = 0;
+        int totalScore = 0;
+
+        if (userId != null) {
+            if (correct) {
+                Long already = practiceSubmissionMapper.selectCount(
+                        new LambdaQueryWrapper<PracticeSubmission>()
+                                .eq(PracticeSubmission::getUserId, userId)
+                                .eq(PracticeSubmission::getQuestionId, id)
+                                .eq(PracticeSubmission::getCorrect, 1));
+                alreadySolved = already != null && already > 0;
+                gained = alreadySolved ? 0 : (question.getScore() == null ? 0 : question.getScore());
+            }
+
+            PracticeSubmission record = new PracticeSubmission();
+            record.setUserId(userId);
+            record.setQuestionId(id);
+            record.setCorrect(correct ? 1 : 0);
+            record.setScore(gained);
+            record.setContent(input.length() > 500 ? input.substring(0, 500) : input);
+            record.setIp(clientIp());
+            practiceSubmissionMapper.insert(record);
+
+            List<PracticeSubmission> mine = practiceSubmissionMapper.selectList(
+                    new LambdaQueryWrapper<PracticeSubmission>()
+                            .eq(PracticeSubmission::getUserId, userId)
+                            .eq(PracticeSubmission::getCorrect, 1));
+            solvedCount = mine.stream().map(PracticeSubmission::getQuestionId).distinct().count();
+            totalScore = mine.stream().mapToInt(s -> s.getScore() == null ? 0 : s.getScore()).sum();
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("correct", correct);
+        result.put("message", correct
+                ? (alreadySolved ? "已解出过，本次不计分" : "答案正确！")
+                : "Flag 不正确，请重试");
+        result.put("score", gained);
+        result.put("alreadySolved", alreadySolved);
+        result.put("solvedCount", solvedCount);
+        result.put("totalScore", totalScore);
+        return Result.ok(result);
+    }
+
+    @Operation(summary = "我的练习统计")
+    @GetMapping("/stats")
+    public Result<Map<String, Object>> stats() {
+        Long userId = UserContext.require().getUserId();
+        List<PracticeSubmission> all = practiceSubmissionMapper.selectList(
+                new LambdaQueryWrapper<PracticeSubmission>()
+                        .eq(PracticeSubmission::getUserId, userId));
+
+        long submitCount = all.size();
+        long correctCount = all.stream().filter(s -> Integer.valueOf(1).equals(s.getCorrect())).count();
+        long solvedCount = all.stream().filter(s -> Integer.valueOf(1).equals(s.getCorrect()))
+                .map(PracticeSubmission::getQuestionId).distinct().count();
+        int totalScore = all.stream().filter(s -> Integer.valueOf(1).equals(s.getCorrect()))
+                .mapToInt(s -> s.getScore() == null ? 0 : s.getScore()).sum();
+        double accuracy = submitCount == 0 ? 0 : Math.round(correctCount * 1000.0 / submitCount) / 10.0;
+
+        Map<String, Object> vo = new HashMap<>();
+        vo.put("solvedCount", solvedCount);
+        vo.put("submitCount", submitCount);
+        vo.put("correctCount", correctCount);
+        vo.put("totalScore", totalScore);
+        vo.put("accuracy", accuracy);
+        return Result.ok(vo);
+    }
+
+    @Operation(summary = "练习排行榜")
+    @GetMapping("/leaderboard")
+    public Result<List<Map<String, Object>>> leaderboard(
+            @RequestParam(defaultValue = "10") int limit) {
+        int safe = Math.min(Math.max(limit, 1), 50);
+        return Result.ok(practiceSubmissionMapper.selectLeaderboard(safe));
+    }
+
+    private String clientIp() {
+        String ip = httpRequest.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isBlank()) {
+            ip = httpRequest.getRemoteAddr();
+        }
+        int idx = ip.indexOf(',');
+        return idx > 0 ? ip.substring(0, idx).trim() : ip;
     }
 
     // ==================== 练习容器（无赛事上下文） ====================

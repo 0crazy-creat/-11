@@ -124,6 +124,11 @@ public class ContainerProvider {
         }
     }
 
+    /** 供其它调度器复用同一个 DockerClient（避免重复建连接）。 */
+    public DockerClient getDockerClient() {
+        return dockerClient;
+    }
+
     public String getNetworkName(NetworkMode mode) {
         return networkNames.getOrDefault(mode, networkNames.get(NetworkMode.ISOLATED));
     }

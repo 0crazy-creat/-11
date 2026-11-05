@@ -12,13 +12,17 @@ public class SpaWebMvcConfig {
 
     @GetMapping({
             "/login",
+            "/qr-confirm",
             "/portal", "/portal/**",
             "/console", "/console/**",
             "/play/**",
             "/rank", "/rank/**",
             "/situation", "/situation/**",
-            "/team/**",
-            "/awd/**"
+            "/team", "/team/**",
+            "/team-home", "/team-home/**",
+            "/awd", "/awd/**",
+            "/awd-screen", "/awd-screen/**",
+            "/awdp", "/awdp/**"
     })
     public String spa() {
         return "forward:/index.html";

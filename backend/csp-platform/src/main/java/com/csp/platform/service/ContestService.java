@@ -34,6 +34,7 @@ public class ContestService {
     private final ContestQuestionMapper contestQuestionMapper;
     private final QuestionService questionService;
     private final ContestFormatRouter formatRouter;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     public PageResult<ContestInfo> page(ContestQuery q) {
         LambdaQueryWrapper<ContestInfo> w = new LambdaQueryWrapper<>();
@@ -45,12 +46,63 @@ public class ContestService {
         }
         w.orderByDesc(ContestInfo::getCreatedAt);
         Page<ContestInfo> p = contestMapper.selectPage(new Page<>(q.getPage(), q.getSize()), w);
+        fillTeamCount(p.getRecords());
+        fillJoined(p.getRecords());
         return PageResult.of(p);
+    }
+
+    /** 列表页"参赛队伍"列：一次分组统计，避免逐行查询。 */
+    private void fillTeamCount(List<ContestInfo> rows) {
+        if (rows == null || rows.isEmpty()) return;
+        List<Long> ids = rows.stream().map(ContestInfo::getId).filter(Objects::nonNull).toList();
+        if (ids.isEmpty()) return;
+        Map<Long, Integer> counts = new HashMap<>();
+        String in = String.join(",", Collections.nCopies(ids.size(), "?"));
+        jdbcTemplate.query(
+                "SELECT contest_id, COUNT(*) c FROM contest_team "
+                        + "WHERE deleted = 0 AND status <> 'QUIT' AND contest_id IN (" + in + ") "
+                        + "GROUP BY contest_id",
+                rs -> {
+                    counts.put(rs.getLong(1), rs.getInt(2));
+                },
+                ids.toArray());
+        rows.forEach(r -> r.setTeamCount(counts.getOrDefault(r.getId(), 0)));
+    }
+
+    /** 列表页"进入/详情"按钮分流：当前登录用户是否已报名（队长或队员）。 */
+    private void fillJoined(List<ContestInfo> rows) {
+        if (rows == null || rows.isEmpty()) return;
+        com.csp.common.security.LoginUser u = UserContext.get();
+        if (u == null || u.getUserId() == null) return;
+        List<Long> ids = rows.stream().map(ContestInfo::getId).filter(Objects::nonNull).toList();
+        if (ids.isEmpty()) return;
+        String in = String.join(",", Collections.nCopies(ids.size(), "?"));
+        Set<Long> joined = new HashSet<>();
+        Object[] captainArgs = new Object[ids.size() + 1];
+        captainArgs[0] = u.getUserId();
+        for (int i = 0; i < ids.size(); i++) captainArgs[i + 1] = ids.get(i);
+        jdbcTemplate.query(
+                "SELECT DISTINCT contest_id FROM contest_team "
+                        + "WHERE deleted = 0 AND status <> 'QUIT' AND captain_id = ? AND contest_id IN (" + in + ")",
+                rs -> {
+                    joined.add(rs.getLong(1));
+                },
+                captainArgs);
+        Object[] memberArgs = captainArgs.clone();
+        jdbcTemplate.query(
+                "SELECT DISTINCT contest_id FROM contest_team_member "
+                        + "WHERE deleted = 0 AND user_id = ? AND contest_id IN (" + in + ")",
+                rs -> {
+                    joined.add(rs.getLong(1));
+                },
+                memberArgs);
+        rows.forEach(r -> r.setJoined(joined.contains(r.getId())));
     }
 
     public ContestInfo get(Long id) {
         ContestInfo c = contestMapper.selectById(id);
         if (c == null) throw new BizException(ResultCode.NOT_FOUND, "赛事不存在：" + id);
+        fillTeamCount(List.of(c));
         return c;
     }
 

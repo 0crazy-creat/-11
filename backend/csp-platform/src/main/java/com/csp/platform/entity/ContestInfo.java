@@ -1,5 +1,6 @@
 package com.csp.platform.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.csp.common.entity.BaseEntity;
 import lombok.Data;
@@ -36,4 +37,12 @@ public class ContestInfo extends BaseEntity {
     private String config;
     private String schemaName;
     private String organizer;
+
+    /** 已报名战队数（列表页展示用，非持久化） */
+    @TableField(exist = false)
+    private Integer teamCount;
+
+    /** 当前登录用户是否已报名（列表页展示用，非持久化） */
+    @TableField(exist = false)
+    private Boolean joined;
 }

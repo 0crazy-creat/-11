@@ -1,5 +1,6 @@
 package com.csp.platform.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.csp.common.entity.BaseEntity;
 import lombok.Data;
@@ -37,4 +38,8 @@ public class Question extends BaseEntity {
     private Integer status;
     /** 赛制特有扩展 JSON */
     private String ext;
+
+    /** 练习页专用：当前用户是否已解出（不持久化） */
+    @TableField(exist = false)
+    private Boolean solved;
 }

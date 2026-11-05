@@ -32,6 +32,7 @@ public class AwdTargetService {
     private final AwdTargetMapper targetMapper;
     private final TargetScheduler scheduler;
     private final RedisService redisService;
+    private final AwdNameResolver nameResolver;
     /** 题库只读访问：用于取题目配置的靶场镜像 */
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
@@ -47,7 +48,7 @@ public class AwdTargetService {
                 .orderByAsc(AwdTarget::getTeamId)
                 .orderByAsc(AwdTarget::getQuestionId);
         if (teamId != null) q.eq(AwdTarget::getTeamId, teamId);
-        return targetMapper.selectList(q).stream().map(this::toVO).toList();
+        return toVOs(contestId, targetMapper.selectList(q));
     }
 
     public AwdTarget requireTarget(Long contestId, Long teamId, Long questionId) {
@@ -79,8 +80,17 @@ public class AwdTargetService {
     public int provisionForContest(Long contestId) {
         List<AwdTarget> existing = targetMapper.selectList(new LambdaQueryWrapper<AwdTarget>()
                 .eq(AwdTarget::getContestId, contestId));
+
+        List<Long> teams = jdbcTemplate.queryForList(
+                "SELECT id FROM contest_team WHERE contest_id = ? AND deleted = 0 AND status = 'APPROVED' ORDER BY id",
+                Long.class, contestId);
+
         int healed = 0;
+        java.util.Set<String> present = new java.util.HashSet<>();
         for (AwdTarget t : existing) {
+            // 只维护仍有效参赛队的靶机；退赛/已删除战队的历史行不再拉起
+            if (!teams.contains(t.getTeamId())) continue;
+            present.add(t.getTeamId() + ":" + t.getQuestionId());
             if (TargetStatus.RUNNING.name().equals(t.getStatus())) continue;
             try {
                 provisionOne(t.getContestId(), t.getTeamId(), t.getQuestionId(), null, null, null);
@@ -90,8 +100,27 @@ public class AwdTargetService {
                         t.getContestId(), t.getTeamId(), t.getQuestionId(), e.getMessage());
             }
         }
-        log.info("靶场编排巡检完成 contest={} 修复 {} 台", contestId, healed);
-        return healed;
+
+        // 补齐：参赛队 × 赛题 缺失的靶机（自愈只修复已有行，不会新建）
+        List<Long> questions = jdbcTemplate.queryForList(
+                "SELECT cq.question_id FROM contest_question cq JOIN question q ON q.id = cq.question_id "
+                        + "WHERE cq.contest_id = ? AND q.bank_type = 'AWD' AND q.deleted = 0 ORDER BY cq.question_id",
+                Long.class, contestId);
+        int created = 0;
+        for (Long teamId : teams) {
+            for (Long qid : questions) {
+                if (!present.add(teamId + ":" + qid)) continue;
+                try {
+                    provisionOne(contestId, teamId, qid, null, null, null);
+                    created++;
+                } catch (Exception e) {
+                    log.warn("靶机编排失败 contest={} team={} q={}: {}",
+                            contestId, teamId, qid, e.getMessage());
+                }
+            }
+        }
+        log.info("靶场编排完成 contest={} 自愈 {} 台，新建 {} 台", contestId, healed, created);
+        return healed + created;
     }
 
     /**
@@ -126,6 +155,7 @@ public class AwdTargetService {
                 .questionId(questionId)
                 .image(image == null || image.isBlank() ? defaultImage(questionId) : image)
                 .containerPort(containerPort == null ? 80 : containerPort)
+                .sshPort(22)
                 .env(envFinal)
                 .cpuLimit("1.0")
                 .memoryLimit("512m")
@@ -134,6 +164,12 @@ public class AwdTargetService {
 
         TargetInstance inst = scheduler.create(spec);
 
+        // 初始化 SSH：每台靶机独立随机密码，写入容器并启动 sshd
+        String sshUser = "root";
+        String sshPassword = "Awd@" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        boolean sshReady = inst.getSshPort() > 0 && !inst.isSimulated()
+                && initSsh(inst.getContainerId(), sshUser, sshPassword);
+
         AwdTarget t = existing == null ? new AwdTarget() : existing;
         t.setContestId(contestId);
         t.setTeamId(teamId);
@@ -141,6 +177,9 @@ public class AwdTargetService {
         t.setContainerId(inst.getContainerId());
         t.setIp(inst.getIp());
         t.setPort(inst.getPort());
+        t.setSshPort(inst.getSshPort() > 0 ? inst.getSshPort() : null);
+        t.setSshUser(sshUser);
+        t.setSshPassword(sshReady ? sshPassword : null);
         t.setStatus(TargetStatus.RUNNING.name());
         t.setHealth(1);
         t.setLastCheckAt(LocalDateTime.now());
@@ -169,12 +208,22 @@ public class AwdTargetService {
                 .questionId(questionId)
                 .image(defaultImage(questionId))
                 .containerPort(t.getPort() == null ? 80 : 80)
+                .sshPort(22)
                 .env(env)
                 .build();
         TargetInstance inst = scheduler.reset(spec);
+
+        String sshUser = "root";
+        String sshPassword = "Awd@" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        boolean sshReady = inst.getSshPort() > 0 && !inst.isSimulated()
+                && initSsh(inst.getContainerId(), sshUser, sshPassword);
+
         t.setContainerId(inst.getContainerId());
         t.setIp(inst.getIp());
         t.setPort(inst.getPort());
+        t.setSshPort(inst.getSshPort() > 0 ? inst.getSshPort() : null);
+        t.setSshUser(sshUser);
+        t.setSshPassword(sshReady ? sshPassword : null);
         t.setStatus(TargetStatus.RUNNING.name());
         t.setHealth(1);
         t.setLastCheckAt(LocalDateTime.now());
@@ -209,29 +258,38 @@ public class AwdTargetService {
                 redisService.hSetString(AwdKeys.roundFlags(contestId, roundNo),
                         t.getTeamId() + ":" + t.getQuestionId(), newFlag);
 
-                // 2) 重启容器并注入新 flag
-                Map<String, String> env = new HashMap<>();
-                env.put("FLAG", newFlag);
-                TargetSpec spec = TargetSpec.builder()
-                        .contestId(contestId)
-                        .teamId(t.getTeamId())
-                        .questionId(t.getQuestionId())
-                        .image(defaultImage(t.getQuestionId()))
-                        .containerPort(80)
-                        .env(env)
-                        .build();
-                TargetInstance inst = scheduler.reset(spec);
-                t.setContainerId(inst.getContainerId());
-                t.setIp(inst.getIp());
-                t.setPort(inst.getPort());
+                // 2) 直接写入容器内的 flag 文件（不重启，保留运行状态与 SSH 端口）
+                boolean written = writeFlagToContainer(t.getContainerId(), newFlag);
+
+                // 3) 写文件失败才回退到重建容器并注入 FLAG 环境变量
+                if (!written) {
+                    Map<String, String> env = new HashMap<>();
+                    env.put("FLAG", newFlag);
+                    TargetSpec spec = TargetSpec.builder()
+                            .contestId(contestId)
+                            .teamId(t.getTeamId())
+                            .questionId(t.getQuestionId())
+                            .image(defaultImage(t.getQuestionId()))
+                            .containerPort(80)
+                            .sshPort(22)
+                            .env(env)
+                            .build();
+                    TargetInstance inst = scheduler.reset(spec);
+                    t.setContainerId(inst.getContainerId());
+                    t.setIp(inst.getIp());
+                    t.setPort(inst.getPort());
+                    if (inst.getSshPort() > 0) {
+                        t.setSshPort(inst.getSshPort());
+                    }
+                }
                 t.setStatus(TargetStatus.RUNNING.name());
                 t.setHealth(1);
                 t.setLastCheckAt(LocalDateTime.now());
                 t.setUpdatedAt(LocalDateTime.now());
                 targetMapper.updateById(t);
                 n++;
-                log.info("轮次 flag 已轮换 contest={} round={} team={} q={} port={}",
-                        contestId, roundNo, t.getTeamId(), t.getQuestionId(), inst.getPort());
+                log.info("轮次 flag 已轮换 contest={} round={} team={} q={} port={} 写文件={}",
+                        contestId, roundNo, t.getTeamId(), t.getQuestionId(), t.getPort(), written);
             } catch (Exception e) {
                 log.error("轮次 flag 轮换失败 contest={} round={} team={}",
                         contestId, roundNo, t.getTeamId(), e);
@@ -310,7 +368,19 @@ public class AwdTargetService {
 
     /** 战队当前可用靶机列表（参赛端只读）。 */
     public List<TargetVO> teamTargets(Long contestId, Long teamId) {
-        return findByTeam(contestId, teamId).stream().map(this::toVO).toList();
+        return toVOs(contestId, findByTeam(contestId, teamId));
+    }
+
+    private List<TargetVO> toVOs(Long contestId, List<AwdTarget> rows) {
+        if (rows == null || rows.isEmpty()) return List.of();
+        Map<Long, String> teams = nameResolver.teamNames(contestId,
+                rows.stream().map(AwdTarget::getTeamId).toList());
+        Map<Long, String> titles = nameResolver.questionTitles(
+                rows.stream().map(AwdTarget::getQuestionId).toList());
+        return rows.stream()
+                .filter(t -> teams.containsKey(t.getTeamId()))
+                .map(t -> toVO(t, teams.get(t.getTeamId()), titles.get(t.getQuestionId())))
+                .toList();
     }
 
     // ------------------------------------------------------------------ 内部
@@ -335,20 +405,44 @@ public class AwdTargetService {
     }
 
     /** 拼装可访问地址；未就绪时返回 null。 */
+    /** 对外访问地址：未配置 public-host 时回退 127.0.0.1，避免拼出 http://:port。 */
+    private String hostOrLocal() {
+        return publicHost == null || publicHost.isBlank() ? "127.0.0.1" : publicHost.trim();
+    }
+
     private String accessUrlOf(AwdTarget t) {
         if (t.getPort() == null || t.getPort() <= 0) return null;
         if (!TargetStatus.RUNNING.name().equals(t.getStatus())) return null;
-        return "http://" + publicHost + ":" + t.getPort();
+        return "http://" + hostOrLocal() + ":" + t.getPort();
     }
 
     private TargetVO toVO(AwdTarget t) {
+        Map<Long, String> teams = t.getTeamId() == null ? Map.of()
+                : nameResolver.teamNames(t.getContestId(), List.of(t.getTeamId()));
+        Map<Long, String> titles = t.getQuestionId() == null ? Map.of()
+                : nameResolver.questionTitles(List.of(t.getQuestionId()));
+        return toVO(t, teams.get(t.getTeamId()), titles.get(t.getQuestionId()));
+    }
+
+    private TargetVO toVO(AwdTarget t, String teamName, String questionTitle) {
         return TargetVO.builder()
                 .id(t.getId())
                 .contestId(t.getContestId())
                 .teamId(t.getTeamId())
+                .teamName(teamName)
                 .questionId(t.getQuestionId())
+                .questionTitle(questionTitle)
                 .ip(t.getIp())
                 .port(t.getPort())
+                .sshPort(t.getSshPort())
+                .sshUser(t.getSshUser())
+                .sshPassword(t.getSshPassword())
+                .sshCommand(t.getSshPort() != null && t.getSshPort() > 0
+                        ? "ssh " + (t.getSshUser() == null ? "root" : t.getSshUser())
+                          + "@" + hostOrLocal() + " -p " + t.getSshPort()
+                        : null)
+                .serviceOk(t.getServiceOk())
+                .lastCheckMsg(t.getLastCheckMsg())
                 .status(t.getStatus())
                 .health(t.getHealth())
                 .cpuPercent(t.getCpuPercent())
@@ -356,5 +450,42 @@ public class AwdTargetService {
                 .lastCheckAt(t.getLastCheckAt())
                 .accessUrl(accessUrlOf(t))
                 .build();
+    }
+
+    /** 初始化靶机 SSH：设置 root 密码并拉起 sshd。镜像未内置 sshd 时返回 false。 */
+    private boolean initSsh(String containerId, String user, String password) {
+        try {
+            String script = "echo '" + user + ":" + password + "' | chpasswd 2>/dev/null; "
+                    + "(service ssh start || service sshd start || /usr/sbin/sshd) >/dev/null 2>&1; "
+                    + "sleep 1; "
+                    + "(ss -lnt 2>/dev/null || netstat -lnt 2>/dev/null) | grep -q ':22 '";
+            TargetScheduler.ExecResult r = scheduler.exec(containerId, new String[]{"sh", "-c", script}, 20);
+            boolean ok = r != null && r.getExitCode() == 0;
+            if (!ok) {
+                log.warn("靶机 SSH 未就绪（镜像可能未内置 sshd） container={}", containerId);
+            }
+            return ok;
+        } catch (Exception e) {
+            log.warn("靶机 SSH 初始化失败 container={}: {}", containerId, e.getMessage());
+            return false;
+        }
+    }
+
+    /** 把新 flag 写入容器内 /flag 与 /flag.txt，成功返回 true。 */
+    private boolean writeFlagToContainer(String containerId, String flag) {
+        if (containerId == null || containerId.isBlank() || containerId.startsWith("sim-")) {
+            return false;
+        }
+        try {
+            String script = "printf '%s\\n' '" + flag + "' > /flag 2>/dev/null; "
+                    + "printf '%s\\n' '" + flag + "' > /flag.txt 2>/dev/null; "
+                    + "chmod 444 /flag /flag.txt 2>/dev/null; "
+                    + "grep -q . /flag 2>/dev/null || grep -q . /flag.txt 2>/dev/null";
+            TargetScheduler.ExecResult r = scheduler.exec(containerId, new String[]{"sh", "-c", script}, 10);
+            return r != null && r.getExitCode() == 0;
+        } catch (Exception e) {
+            log.warn("flag 写入容器失败 container={}: {}", containerId, e.getMessage());
+            return false;
+        }
     }
 }

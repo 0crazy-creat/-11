@@ -5,6 +5,7 @@
       <el-menu :default-active="$route.path" router class="nav-menu">
         <el-menu-item index="/console"><el-icon><Odometer /></el-icon><span>控制台</span></el-menu-item>
         <el-menu-item v-if="can('contest:create')" index="/console/contests"><el-icon><Trophy /></el-icon><span>赛事管理</span></el-menu-item>
+        <el-menu-item v-if="can('contest:update')" index="/console/awd"><el-icon><Aim /></el-icon><span>AWD 管理</span></el-menu-item>
         <el-menu-item v-if="can('question:create')" index="/console/question-bank"><el-icon><Collection /></el-icon><span>全局题库</span></el-menu-item>
         <el-menu-item v-if="can('question:create')" index="/console/challenges"><el-icon><Flag /></el-icon><span>赛事题目</span></el-menu-item>
         <el-menu-item v-if="can('team:manage')" index="/console/teams"><el-icon><User /></el-icon><span>战队管理</span></el-menu-item>

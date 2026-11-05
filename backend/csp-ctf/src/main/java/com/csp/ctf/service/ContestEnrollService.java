@@ -116,9 +116,11 @@ public class ContestEnrollService {
         if (!java.util.Objects.equals(team.getCaptainId(), userId)) {
             throw new BizException(ResultCode.FORBIDDEN, "仅队长可为战队报名");
         }
+        // 已撤赛（QUIT）的历史记录不阻止重新报名
         Long bound = teamMapper.selectCount(new LambdaQueryWrapper<ContestTeam>()
                 .eq(ContestTeam::getContestId, contestId)
-                .eq(ContestTeam::getTeamId, globalTeamId));
+                .eq(ContestTeam::getTeamId, globalTeamId)
+                .ne(ContestTeam::getStatus, "QUIT"));
         if (bound != null && bound > 0) throw new BizException(ResultCode.CONFLICT, "该战队已报名本赛事");
 
         List<Long> memberIds = globalTeamService.memberUserIds(globalTeamId);
@@ -151,10 +153,13 @@ public class ContestEnrollService {
         return enroll;
     }
 
-    /** 取消报名。队长退出即整支战队撤赛，队员仅退出自己。 */
+    /** 取消报名。队长退出即整支战队撤赛，队员仅退出自己。仅赛前（SIGNUP）可操作。 */
     @Transactional(rollbackFor = Exception.class)
     public void quit(Long userId, Long contestId) {
         Contest contest = guard.requireContest(contestId);
+        if (!"SIGNUP".equals(contest.getStatus())) {
+            throw new BizException(ResultCode.CONFLICT, "仅报名阶段可取消报名，比赛已开始或已结束");
+        }
         ContestTeamMember m = memberMapper.selectOne(new LambdaQueryWrapper<ContestTeamMember>()
                 .eq(ContestTeamMember::getContestId, contestId)
                 .eq(ContestTeamMember::getUserId, userId));

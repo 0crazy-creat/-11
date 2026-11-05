@@ -62,7 +62,7 @@ public class AntiCheatAnalysisService {
             df.setDeviceId(deviceId);
             df.setUserId(userId);
             df.setContestId(contestId);
-            df.setFingerprint(fingerprint);
+            df.setFingerprint(normalizeFingerprint(fingerprint, deviceId, ipAddress, userAgent));
             df.setIpAddress(ipAddress);
             df.setUserAgent(userAgent);
             df.setFirstSeenAt(LocalDateTime.now());
@@ -75,12 +75,41 @@ public class AntiCheatAnalysisService {
             existing.setLastSeenAt(LocalDateTime.now());
             existing.setIpAddress(ipAddress);
             existing.setUserAgent(userAgent);
-            existing.setFingerprint(fingerprint);
+            existing.setFingerprint(normalizeFingerprint(fingerprint, deviceId, ipAddress, userAgent));
             fingerprintMapper.updateById(existing);
         }
 
         // 检测多账号风险
         detectMultiAccountRisk(contestId, userId, deviceId, ipAddress);
+    }
+
+    /**
+     * 归一化设备特征文档。
+     *
+     * <p>{@code device_fingerprint.fingerprint} 是 {@code JSON NOT NULL}：现有提交入口并不采集
+     * 浏览器特征（统一传 null），若不在此补出合法 JSON，插入会抛
+     * {@code Field 'fingerprint' doesn't have a default value}，并把调用方（答题判分）的整个事务
+     * 一起回滚——表现为「凡是带 deviceId 的提交一律 500」。</p>
+     */
+    private String normalizeFingerprint(String fingerprint, String deviceId, String ipAddress, String userAgent) {
+        if (fingerprint != null && !fingerprint.isBlank()) {
+            try {
+                objectMapper.readTree(fingerprint);
+                return fingerprint;
+            } catch (Exception ignored) {
+                // 非 JSON 的裸字符串（旧客户端）落到下面的结构化文档
+            }
+        }
+        Map<String, Object> doc = new HashMap<>();
+        doc.put("deviceId", deviceId);
+        doc.put("ip", ipAddress);
+        doc.put("userAgent", userAgent);
+        doc.put("source", "server-derived");
+        try {
+            return objectMapper.writeValueAsString(doc);
+        } catch (Exception e) {
+            return "{}";
+        }
     }
 
     /**

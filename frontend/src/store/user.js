@@ -61,5 +61,19 @@ export const useUserStore = defineStore('user', () => {
     persist()
   }
 
-  return { token, profile, roles, isAdmin, login, refresh, logout }
+  /** 用后端 LoginVO 直接落登录态（扫码回调 / 第三方登录复用）。 */
+  function applyLogin(data) {
+    if (!data) return
+    token.value = data.accessToken || data.token || ''
+    if (data.refreshToken) localStorage.setItem('csp_refresh_token', data.refreshToken)
+    const u = data.user || data.profile || {}
+    profile.value = {
+      ...u,
+      roles: data.roles || u.roles || [],
+      permissions: data.permissions || u.permissions || []
+    }
+    persist()
+  }
+
+  return { token, profile, roles, isAdmin, login, refresh, logout, applyLogin }
 })
