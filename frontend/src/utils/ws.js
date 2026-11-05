@@ -16,8 +16,13 @@ export function connectWs(path, onMessage, options = {}) {
     ws = new WebSocket(`${baseUrl()}${path}`)
     ws.onmessage = (evt) => {
       try {
-        const data = JSON.parse(evt.data)
-        onMessage && onMessage(data)
+        const raw = JSON.parse(evt.data)
+        // 后端 WsMessage 字段名是 payload，而各页面统一读 msg.data。
+        // 这里做一次归一化：data 缺失时用 payload 补齐，避免每个页面各自兼容。
+        if (raw && typeof raw === 'object' && raw.data === undefined && raw.payload !== undefined) {
+          raw.data = raw.payload
+        }
+        onMessage && onMessage(raw)
       } catch (e) {
         onMessage && onMessage({ type: 'RAW', data: evt.data })
       }
