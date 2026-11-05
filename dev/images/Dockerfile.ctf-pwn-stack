@@ -1,0 +1,10 @@
+# 题库中 900017「栈溢出入门」引用 ctf/pwn-stack，复用已有的 csp/pwn-bof（xinetd 监听 9999）
+FROM csp/pwn-bof:latest
+
+COPY entrypoint-flag.sh /usr/local/bin/entrypoint-flag.sh
+RUN chmod +x /usr/local/bin/entrypoint-flag.sh
+
+EXPOSE 9999
+ENTRYPOINT ["/usr/local/bin/entrypoint-flag.sh"]
+# 与 csp/pwn-bof 修复版保持一致：前台运行 + 日志写 stdout，避免 xinetd 打不开日志文件退出
+CMD ["/usr/sbin/xinetd", "-dontfork", "-filelog", "/dev/stdout"]

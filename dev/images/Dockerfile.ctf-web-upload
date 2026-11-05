@@ -1,0 +1,10 @@
+# 题库中 900003 引用了 ctf/web-upload，内容与 csp/web-upload 完全对应
+# 这里做一层别名镜像，并补上 FLAG -> /flag.txt 的注入
+FROM csp/web-upload:latest
+
+COPY entrypoint-flag.sh /usr/local/bin/entrypoint-flag.sh
+RUN chmod +x /usr/local/bin/entrypoint-flag.sh
+
+EXPOSE 80
+ENTRYPOINT ["/usr/local/bin/entrypoint-flag.sh"]
+CMD ["docker-php-entrypoint", "apache2-foreground"]

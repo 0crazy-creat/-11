@@ -1,0 +1,10 @@
+# 动态容器测试题（题库 2118154999337238530，端口 80，DYNAMIC_CONTAINER）
+FROM nginx:alpine
+
+COPY web/index.html /usr/share/nginx/html/index.html
+COPY entrypoint-flag.sh /usr/local/bin/entrypoint-flag.sh
+RUN chmod +x /usr/local/bin/entrypoint-flag.sh
+
+EXPOSE 80
+ENTRYPOINT ["/usr/local/bin/entrypoint-flag.sh"]
+CMD ["nginx", "-g", "daemon off;"]

@@ -1,0 +1,13 @@
+# 内核提权靶场（题库 900020 引用 ctf/pwn-kernel，端口 9999）
+# 说明：真内核模块利用需要 privileged 容器，平台当前不支持，这里提供可交互的模拟内核接口，
+#      保留 /proc 风格的读写与 exploit 流程，flag 仍在容器内 /flag.txt。
+FROM alpine:3.20
+RUN apk add --no-cache socat
+
+COPY pwn/kernel-service.sh /pwn/kernel-service.sh
+COPY entrypoint-flag.sh /usr/local/bin/entrypoint-flag.sh
+RUN chmod +x /pwn/kernel-service.sh /usr/local/bin/entrypoint-flag.sh
+
+EXPOSE 9999
+ENTRYPOINT ["/usr/local/bin/entrypoint-flag.sh"]
+CMD ["socat", "TCP-LISTEN:9999,reuseaddr,fork", "EXEC:/pwn/kernel-service.sh,stderr"]

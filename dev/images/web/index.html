@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dynamic Container Lab</title>
+  <style>
+    body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; margin: 60px auto; max-width: 720px; padding: 0 20px; line-height: 1.75; color: #1f2329; }
+    h1 { font-size: 24px; }
+    code { background: #f2f4f7; padding: 2px 6px; border-radius: 4px; }
+    pre { background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px 16px; }
+    .tip { color: #5f6672; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Dynamic Container Lab</h1>
+  <p>这是一个按队伍动态下发的容器靶场，每次启动的容器实例相互隔离。</p>
+  <p class="tip">Flag 位于容器内 <code>/flag.txt</code>，也可以直接访问 <a href="/flag.txt">/flag.txt</a> 获取。</p>
+  <pre id="flag">loading...</pre>
+  <script>
+    fetch('/flag.txt')
+      .then(function (r) { return r.text(); })
+      .then(function (t) { document.getElementById('flag').textContent = t.trim(); })
+      .catch(function () { document.getElementById('flag').textContent = 'flag file not found'; });
+  </script>
+</body>
+</html>

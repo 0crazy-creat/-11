@@ -3,13 +3,25 @@ package com.csp.platform.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.csp.common.api.Result;
+import com.csp.common.exception.BizException;
+import com.csp.ctf.entity.ChallengeContainer;
+import com.csp.ctf.judge.QuestionExt;
+import com.csp.ctf.service.ContainerLifecycleService;
+import com.csp.infra.docker.ContainerStatus;
+import com.csp.infra.docker.NetworkMode;
 import com.csp.platform.entity.Question;
 import com.csp.platform.mapper.QuestionMapper;
+import com.csp.security.core.UserContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.Builder;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -23,6 +35,14 @@ import java.util.Map;
 public class PracticeController {
 
     private final QuestionMapper questionMapper;
+    private final ContainerLifecycleService lifecycleService;
+    private final HttpServletRequest httpRequest;
+
+    /** 练习模式无赛事上下文，用 0 作为虚拟赛事 ID，与其他赛事隔离。 */
+    private static final Long PRACTICE_CONTEST_ID = 0L;
+
+    @Value("${csp.docker.public-host:}")
+    private String publicHost;
 
     @Operation(summary = "获取练习题列表")
     @GetMapping("/challenges")
@@ -38,9 +58,9 @@ public class PracticeController {
         // 只查询CTF类型的题目
         wrapper.eq(Question::getBankType, "CTF");
         
-        // 分类筛选
+        // 分类筛选：题库中同时存在 WEB / Web 等大小写混用，按小写比对避免漏题
         if (category != null && !category.isEmpty()) {
-            wrapper.eq(Question::getCategory, category);
+            wrapper.apply("LOWER(category) = LOWER({0})", category);
         }
         
         // 难度筛选
@@ -119,5 +139,121 @@ public class PracticeController {
                 "message", correct ? "答案正确！" : "Flag 不正确，请重试",
                 "score", correct ? (question.getScore() == null ? 0 : question.getScore()) : 0
         ));
+    }
+
+    // ==================== 练习容器（无赛事上下文） ====================
+
+    @Operation(summary = "查询练习容器状态")
+    @GetMapping("/challenges/{id}/container")
+    public Result<ContainerVO> practiceContainerStatus(@PathVariable Long id) {
+        Long userId = UserContext.require().getUserId();
+        ChallengeContainer c = lifecycleService.getContainer(PRACTICE_CONTEST_ID, userId, id);
+        return Result.ok(c == null ? null : toContainerVO(c));
+    }
+
+    @Operation(summary = "启动练习容器")
+    @PostMapping("/challenges/{id}/container/start")
+    public Result<ContainerVO> startPracticeContainer(@PathVariable Long id) {
+        Long userId = UserContext.require().getUserId();
+        Question q = requireContainerQuestion(id);
+        QuestionExt ext = QuestionExt.parse(q.getExt());
+        String image = effectiveImage(q, ext);
+        ChallengeContainer c = lifecycleService.createContainer(
+                PRACTICE_CONTEST_ID, userId, id, userId,
+                image, ext.getEffectivePort(), ext, NetworkMode.ISOLATED, q.getFlag());
+        return Result.ok(toContainerVO(c));
+    }
+
+    @Operation(summary = "重置练习容器")
+    @PostMapping("/challenges/{id}/container/reset")
+    public Result<ContainerVO> resetPracticeContainer(@PathVariable Long id) {
+        Long userId = UserContext.require().getUserId();
+        Question q = requireContainerQuestion(id);
+        QuestionExt ext = QuestionExt.parse(q.getExt());
+        String image = effectiveImage(q, ext);
+        ChallengeContainer c = lifecycleService.resetContainer(
+                PRACTICE_CONTEST_ID, userId, id, userId,
+                image, ext.getEffectivePort(), ext, NetworkMode.ISOLATED, q.getFlag());
+        return Result.ok(toContainerVO(c));
+    }
+
+    @Operation(summary = "销毁练习容器")
+    @PostMapping("/challenges/{id}/container/destroy")
+    public Result<Map<String, Boolean>> destroyPracticeContainer(@PathVariable Long id) {
+        Long userId = UserContext.require().getUserId();
+        boolean ok = lifecycleService.destroyContainer(PRACTICE_CONTEST_ID, userId, id);
+        return Result.ok(Map.of("destroyed", ok));
+    }
+
+    @Operation(summary = "续期练习容器")
+    @PostMapping("/challenges/{id}/container/extend")
+    public Result<ContainerVO> extendPracticeContainer(@PathVariable Long id) {
+        Long userId = UserContext.require().getUserId();
+        ChallengeContainer c = lifecycleService.extendContainer(PRACTICE_CONTEST_ID, userId, id);
+        return Result.ok(toContainerVO(c));
+    }
+
+    // ==================== 内部方法 ====================
+
+    private Question requireContainerQuestion(Long id) {
+        Question q = questionMapper.selectById(id);
+        if (q == null) throw new BizException(404, "题目不存在");
+        QuestionExt ext = QuestionExt.parse(q.getExt());
+        if (!ext.dockerEnabled()) {
+            throw new BizException(400, "该题为附件题，无需启动容器");
+        }
+        if (effectiveImage(q, ext) == null) {
+            throw new BizException(409, "题目未配置靶机镜像");
+        }
+        return q;
+    }
+
+    private String effectiveImage(Question q, QuestionExt ext) {
+        String img = ext.getEffectiveImage();
+        if (img == null || img.isBlank()) img = q.getImageName();
+        return (img == null || img.isBlank()) ? null : img;
+    }
+
+    private String resolveHost() {
+        if (publicHost != null && !publicHost.isBlank()) return publicHost;
+        String host = httpRequest.getHeader("X-Forwarded-Host");
+        if (host == null || host.isBlank()) host = httpRequest.getHeader("Host");
+        if (host == null || host.isBlank()) return "127.0.0.1";
+        int idx = host.indexOf(':');
+        return idx > 0 ? host.substring(0, idx) : host;
+    }
+
+    private ContainerVO toContainerVO(ChallengeContainer c) {
+        Integer accessPort = c.getPublicPort() != null && c.getPublicPort() > 0
+                ? c.getPublicPort() : c.getPort();
+        String url = accessPort != null && accessPort > 0
+                && !ContainerStatus.DESTROYED.name().equals(c.getStatus())
+                && !ContainerStatus.ERROR.name().equals(c.getStatus())
+                ? "http://" + resolveHost() + ":" + accessPort : null;
+        return ContainerVO.builder()
+                .questionId(c.getQuestionId())
+                .containerId(c.getContainerId())
+                .port(accessPort)
+                .accessUrl(url)
+                .status(c.getStatus())
+                .simulated(Boolean.TRUE.equals(c.getSimulated()))
+                .startedAt(c.getStartedAt())
+                .expectStopAt(c.getExpectStopAt())
+                .checkedAt(LocalDateTime.now())
+                .build();
+    }
+
+    @Data
+    @Builder
+    public static class ContainerVO {
+        private Long questionId;
+        private String containerId;
+        private Integer port;
+        private String accessUrl;
+        private String status;
+        private boolean simulated;
+        private LocalDateTime startedAt;
+        private LocalDateTime expectStopAt;
+        private LocalDateTime checkedAt;
     }
 }

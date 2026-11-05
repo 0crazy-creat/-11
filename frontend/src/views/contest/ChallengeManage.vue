@@ -1,6 +1,12 @@
 <template>
   <div>
-    <el-card shadow="never" header="题目管理">
+    <el-card shadow="never">
+      <template #header>
+        <div class="card-head">
+          <span>赛事题目管理</span>
+          <span class="head-tip">仅显示当前赛事挂载的题目；题库总量请到「全局题库」管理</span>
+        </div>
+      </template>
       <div class="toolbar">
         <el-select v-model="contestId" placeholder="选择赛事" style="width:220px" @change="load">
           <el-option v-for="c in contests" :key="c.id" :label="c.name" :value="c.id" />
@@ -9,7 +15,9 @@
       </div>
       <el-table :data="rows" v-loading="loading" size="small">
         <el-table-column prop="title" label="题目" min-width="180" />
-        <el-table-column prop="category" label="分类" width="100" />
+        <el-table-column label="分类" width="100">
+          <template #default="{ row }">{{ normCategory(row.category) }}</template>
+        </el-table-column>
         <el-table-column prop="difficulty" label="难度" width="80" />
         <el-table-column prop="score" label="分值" width="80" />
         <el-table-column label="类型" width="120">
@@ -28,7 +36,7 @@
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-            <el-button link type="danger" @click="remove(row)">删除</el-button>
+            <el-button link type="danger" @click="remove(row)">移除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -48,6 +56,7 @@
             <el-option label="简单" value="EASY" />
             <el-option label="中等" value="MEDIUM" />
             <el-option label="困难" value="HARD" />
+            <el-option label="地狱" value="INSANE" />
           </el-select>
         </el-form-item>
         <el-form-item label="分值"><el-input-number v-model="form.score" :min="0" :step="100" /></el-form-item>
@@ -118,8 +127,25 @@
         </template>
 
         <template v-if="form.challengeType === 'STATIC_ATTACHMENT'">
-          <el-form-item label="附件地址">
-            <el-input v-model="form.attachmentUrl" placeholder="附件下载URL" />
+          <el-form-item label="题目附件">
+            <div class="upload-row">
+              <el-upload
+                :action="uploadUrl"
+                :headers="uploadHeaders"
+                name="file"
+                :show-file-list="false"
+                :before-upload="onBeforeUpload"
+                :on-success="onAttachmentUploaded"
+                :on-error="onAttachmentError"
+              >
+                <el-button :loading="uploading" type="primary" plain>上传附件</el-button>
+              </el-upload>
+              <span v-if="form.attachmentUrl" class="upload-file">
+                <a :href="form.attachmentUrl" target="_blank" rel="noopener">{{ attachmentName }}</a>
+                <el-button link type="danger" @click="form.attachmentUrl = ''">移除</el-button>
+              </span>
+              <span v-else class="upload-tip">文件直接上传到服务器，选手在题目页点击即可下载</span>
+            </div>
           </el-form-item>
         </template>
       </el-form>
@@ -136,7 +162,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { contestApi, challengeApi } from '@/api'
 
-const categories = ['WEB', 'PWN', 'REVERSE', 'CRYPTO', 'MISC', 'BLOCKCHAIN', 'AWD']
+const categories = ['Web', 'Pwn', 'Reverse', 'Crypto', 'Misc', 'Blockchain', 'Forensics', 'Theory', 'Scenario']
 const loading = ref(false)
 const saving = ref(false)
 const visible = ref(false)
@@ -166,6 +192,18 @@ const typeHelpText = computed(() => {
   return map[form.challengeType] || ''
 })
 
+const CATEGORY_ALIASES = {
+  web: 'Web', misc: 'Misc', crypto: 'Crypto', reverse: 'Reverse', pwn: 'Pwn',
+  blockchain: 'Blockchain', forensics: 'Forensics', theory: 'Theory', scenario: 'Scenario'
+}
+
+/** 题库历史数据存在 WEB/Web 混用，统一显示 */
+function normCategory(category) {
+  const raw = (category == null ? '' : String(category)).trim()
+  if (!raw) return '-'
+  return CATEGORY_ALIASES[raw.toLowerCase()] || raw
+}
+
 function getTypeLabel(type) {
   const map = { 'STATIC_ATTACHMENT': '静态附件', 'STATIC_CONTAINER': '静态容器', 'DYNAMIC_CONTAINER': '动态容器' }
   return map[type] || '未知'
@@ -174,6 +212,43 @@ function getTypeLabel(type) {
 function getTypeTagColor(type) {
   const map = { 'STATIC_ATTACHMENT': 'info', 'STATIC_CONTAINER': 'warning', 'DYNAMIC_CONTAINER': 'success' }
   return map[type] || 'info'
+}
+
+// ===== 附件上传（走后端 /api/files/upload，不走 axios 拦截器）=====
+const uploadUrl = '/api/files/upload'
+const uploading = ref(false)
+const uploadHeaders = computed(() => ({
+  Authorization: `Bearer ${localStorage.getItem('csp_token') || ''}`
+}))
+const attachmentName = computed(() => {
+  const raw = (form.attachmentUrl || '').split('/').pop() || ''
+  const idx = raw.indexOf('_')
+  const name = idx >= 0 ? raw.slice(idx + 1) : raw
+  try {
+    return decodeURIComponent(name)
+  } catch {
+    return name
+  }
+})
+
+function onBeforeUpload() {
+  uploading.value = true
+  return true
+}
+
+function onAttachmentUploaded(res) {
+  uploading.value = false
+  if (res && res.code === 0 && res.data && res.data.url) {
+    form.attachmentUrl = res.data.url
+    ElMessage.success('附件已上传')
+  } else {
+    ElMessage.error((res && res.message) || '上传失败')
+  }
+}
+
+function onAttachmentError() {
+  uploading.value = false
+  ElMessage.error('上传失败，请检查文件大小（单文件不超过 200MB）')
 }
 
 function onTypeChange() {
@@ -193,10 +268,20 @@ async function load() {
 function openCreate() { Object.assign(form, { ...defaultForm }); visible.value = true }
 
 function openEdit(row) {
+  let rawExt = {}
+  if (row.ext) {
+    try {
+      rawExt = typeof row.ext === 'object' ? row.ext : JSON.parse(row.ext)
+    } catch {
+      rawExt = {}
+    }
+  }
   Object.assign(form, {
     ...defaultForm, ...row,
     challengeType: row.challengeType || (row.containerImage || row.imageName ? 'STATIC_CONTAINER' : 'STATIC_ATTACHMENT')
   })
+  // 保留 ext 中的历史字段（solvedCount 等），保存时与新配置合并，避免整体覆盖丢失
+  form._rawExt = rawExt
   visible.value = true
 }
 
@@ -207,7 +292,27 @@ async function save() {
 
   saving.value = true
   try {
-    const payload = { ...form, contestId: contestId.value, imageName: form.containerImage }
+    const { _rawExt, ...rest } = form
+    const payload = {
+      ...rest,
+      contestId: contestId.value,
+      imageName: form.containerImage,
+      ext: JSON.stringify({
+        ...(_rawExt || {}),
+        challengeType: form.challengeType,
+        isDocker: isContainerType.value,
+        judgeMode: form.challengeType === 'DYNAMIC_CONTAINER' ? 'DYNAMIC' : 'STATIC',
+        ...(isContainerType.value ? {
+          imageName: form.containerImage,
+          containerImage: form.containerImage,
+          exposePort: form.exposePort,
+          cpuLimit: form.cpuLimit,
+          memoryLimit: form.memoryLimit,
+          storageLimit: form.storageLimit,
+          networkMode: form.networkMode
+        } : {})
+      })
+    }
     if (form.id) await challengeApi.update(form.id, payload)
     else await challengeApi.create(payload)
     ElMessage.success('已保存')
@@ -217,22 +322,37 @@ async function save() {
 }
 
 async function remove(row) {
-  await ElMessageBox.confirm('删除题目 ' + row.title + ' ？', '提示', { type: 'warning' })
+  await ElMessageBox.confirm(
+    `将「${row.title}」从当前赛事移除？题库中的题目不会被删除。`,
+    '提示',
+    { type: 'warning' }
+  )
   await challengeApi.remove(row.id)
-  ElMessage.success('已删除')
-  load()
+  ElMessage.success('已从赛事移除')
+  await load()
 }
 
 onMounted(async () => {
   const data = await contestApi.list({ page: 1, size: 100 })
   contests.value = data.list || data.records || data || []
-  if (contests.value.length) { contestId.value = contests.value[0].id; load() }
+  if (!contests.value.length) return
+  // 优先选中进行中的赛事，避免默认落在已结束的测试赛事上造成「题库空了」的错觉
+  const running = contests.value.find(c => c.status === 'RUNNING')
+  contestId.value = (running || contests.value[0]).id
+  await load()
 })
 </script>
 
 <style scoped>
+.card-head { display: flex; align-items: baseline; gap: 10px; }
+.head-tip { font-size: 12px; font-weight: 400; color: var(--el-text-color-secondary); }
 .toolbar { display: flex; gap: 10px; margin-bottom: 14px; }
 .form-help { font-size: 12px; color: #909399; margin-top: 4px; }
 .image-text { font-family: monospace; font-size: 12px; color: #606266; }
+.upload-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.upload-file { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.upload-file a { color: var(--el-color-primary); text-decoration: none; }
+.upload-file a:hover { text-decoration: underline; }
+.upload-tip { font-size: 12px; color: var(--el-text-color-secondary); }
 .text-gray { color: #c0c4cc; }
 </style>

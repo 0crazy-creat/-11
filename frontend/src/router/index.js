@@ -20,6 +20,8 @@ const portalRoutes = [
   { path: 'my', name: 'portal-my', component: () => import('@/views/portal/MyContests.vue'), meta: { title: '我的比赛' } },
   { path: 'writeups', name: 'portal-writeups', component: () => import('@/views/portal/WriteupCommunity.vue'), meta: { title: '题解社区' } },
   { path: 'contest/:contestId', name: 'portal-play', component: () => import('@/views/portal/PlayArena.vue'), props: true, meta: { title: '赛事答题' } },
+  // 赛事详情：赛前展示信息/报名，赛中入口，赛后展示赛题与最终排名
+  { path: 'contests/:contestId', name: 'portal-contest-overview', component: () => import('@/views/portal/ContestOverview.vue'), props: true, meta: { title: '赛事详情' } },
   // 六赛制统一入口：注册表 route 全量落地
   { path: 'theory/:contestId', name: 'portal-theory', component: () => import('@/views/portal/TheoryArena.vue'), props: true, meta: { title: '理论赛' } },
   { path: 'scenario/:contestId', name: 'portal-scenario', component: () => import('@/views/portal/ScenarioArena.vue'), props: true, meta: { title: '场景实操赛' } },
@@ -34,7 +36,8 @@ const consoleRoutes = [
   { path: '', name: 'console-home', component: () => import('@/views/console/Dashboard.vue'), meta: { title: '控制台', perm: null } },
   { path: 'contests', name: 'admin-contests', component: () => import('@/views/contest/ContestList.vue'), meta: { title: '赛事管理', perm: 'contest:create' } },
   { path: 'contests/:id', name: 'admin-contest-detail', component: () => import('@/views/contest/ContestDetail.vue'), props: true, meta: { title: '赛事详情', perm: 'contest:update' } },
-  { path: 'challenges', name: 'admin-challenges', component: () => import('@/views/contest/ChallengeManage.vue'), meta: { title: '题库管理', perm: 'question:create' } },
+  { path: 'question-bank', name: 'admin-question-bank', component: () => import('@/views/console/QuestionBank.vue'), meta: { title: '全局题库', perm: 'question:create' } },
+  { path: 'challenges', name: 'admin-challenges', component: () => import('@/views/contest/ChallengeManage.vue'), meta: { title: '赛事题目管理', perm: 'question:create' } },
   { path: 'teams', name: 'admin-teams', component: () => import('@/views/contest/TeamList.vue'), meta: { title: '战队管理', perm: 'team:manage' } },
   { path: 'users', name: 'admin-users', component: () => import('@/views/console/UserList.vue'), meta: { title: '用户管理', perm: 'user:manage' } },
   { path: 'announcements', name: 'admin-announcements', component: () => import('@/views/console/Announcement.vue'), meta: { title: '公告管理', perm: 'announcement:manage' } },
@@ -79,6 +82,7 @@ const routes = [
   { path: '/situation/:contestId?', name: 'situation', component: () => import('@/views/situation/Situation3D.vue'), props: true, meta: { public: true } },
   { path: '/rank/:contestId?', name: 'ranking', component: () => import('@/views/situation/Ranking.vue'), props: true, meta: { public: true } },
   { path: '/team/:teamId', name: 'team-home', component: () => import('@/views/situation/TeamHome.vue'), props: true, meta: { public: true } },
+  { path: '/team-home/:teamId', name: 'team-profile', component: () => import('@/views/situation/TeamProfile.vue'), props: true, meta: { public: true } },
 
   { path: '/:pathMatch(.*)*', redirect: '/portal' }
 ]

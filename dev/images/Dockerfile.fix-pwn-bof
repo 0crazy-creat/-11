@@ -1,0 +1,12 @@
+# 修复 csp/pwn-bof：xinetd 启动时报 "msg_init failed: can't open log file" 直接退出
+# 处理：预建日志文件 + 改为前台 dontfork + 日志写 stdout
+FROM csp/pwn-bof:orig
+
+RUN mkdir -p /var/log && touch /var/log/xinetd.log && chmod 666 /var/log/xinetd.log
+
+COPY entrypoint-flag.sh /usr/local/bin/entrypoint-flag.sh
+RUN chmod +x /usr/local/bin/entrypoint-flag.sh
+
+EXPOSE 9999
+ENTRYPOINT ["/usr/local/bin/entrypoint-flag.sh"]
+CMD ["/usr/sbin/xinetd", "-dontfork", "-filelog", "/dev/stdout"]

@@ -1,0 +1,12 @@
+# AES-CBC 字节翻转靶场（题库 2118187119367475202，端口 8080）
+FROM python:3.12-alpine
+RUN apk add --no-cache openssl
+
+WORKDIR /app
+COPY crypto/aes_oracle.py /app/aes_oracle.py
+COPY entrypoint-flag.sh /usr/local/bin/entrypoint-flag.sh
+RUN chmod +x /usr/local/bin/entrypoint-flag.sh
+
+EXPOSE 8080
+ENTRYPOINT ["/usr/local/bin/entrypoint-flag.sh"]
+CMD ["python", "/app/aes_oracle.py"]

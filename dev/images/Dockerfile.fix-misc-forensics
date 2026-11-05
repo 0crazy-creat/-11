@@ -1,0 +1,10 @@
+# 修复 csp/misc-forensics：镜像内 /app/server.py 被压成单行导致 SyntaxError，容器起不来
+FROM csp/misc-forensics:orig
+
+COPY web/forensics-server.py /app/server.py
+COPY entrypoint-flag.sh /usr/local/bin/entrypoint-flag.sh
+RUN chmod +x /usr/local/bin/entrypoint-flag.sh
+
+EXPOSE 8080
+ENTRYPOINT ["/usr/local/bin/entrypoint-flag.sh"]
+CMD ["python", "/app/server.py"]

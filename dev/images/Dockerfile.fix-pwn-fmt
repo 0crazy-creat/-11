@@ -1,0 +1,10 @@
+# 修复 csp/pwn-fmt：原 /run.sh 把 flag 写死到 /tmp/flag.txt，且 xinetd 日志打开失败
+FROM csp/pwn-fmt:orig
+
+COPY pwn/pwn-fmt-run.sh /run.sh
+COPY entrypoint-flag.sh /usr/local/bin/entrypoint-flag.sh
+RUN chmod +x /run.sh /usr/local/bin/entrypoint-flag.sh
+
+EXPOSE 9999
+ENTRYPOINT ["/usr/local/bin/entrypoint-flag.sh"]
+CMD ["/run.sh"]

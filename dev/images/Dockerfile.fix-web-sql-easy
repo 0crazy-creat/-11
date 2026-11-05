@@ -1,0 +1,9 @@
+# 修复 csp/web-sql-easy：镜像内无 /flag.txt，补 flag 注入层
+FROM csp/web-sql-easy:orig
+
+COPY entrypoint-flag.sh /usr/local/bin/entrypoint-flag.sh
+RUN chmod +x /usr/local/bin/entrypoint-flag.sh
+
+EXPOSE 80
+ENTRYPOINT ["/usr/local/bin/entrypoint-flag.sh"]
+CMD ["docker-php-entrypoint", "apache2-foreground"]

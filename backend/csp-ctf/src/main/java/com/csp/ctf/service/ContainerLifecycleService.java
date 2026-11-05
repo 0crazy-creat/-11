@@ -63,6 +63,19 @@ public class ContainerLifecycleService {
     public ChallengeContainer createContainer(Long contestId, Long teamId, Long questionId,
                                                Long userId, String image, int exposedPort,
                                                QuestionExt ext, NetworkMode networkMode) {
+        return createContainer(contestId, teamId, questionId, userId, image, exposedPort, ext, networkMode, null);
+    }
+
+    /**
+     * 创建容器，可显式指定 flag。
+     * 练习模式没有赛事上下文，题目 flag 不会走 resolveFlag（那只处理 DYNAMIC），
+     * 通过 overrideFlag 把题目 flag 注入容器，靶场内的 /flag.txt 才有内容。
+     */
+    @Transactional
+    public ChallengeContainer createContainer(Long contestId, Long teamId, Long questionId,
+                                               Long userId, String image, int exposedPort,
+                                               QuestionExt ext, NetworkMode networkMode,
+                                               String overrideFlag) {
         String containerName = buildContainerName(contestId, teamId, questionId);
 
         ChallengeContainer existing = findRunningContainer(contestId, teamId, questionId);
@@ -82,7 +95,8 @@ public class ContainerLifecycleService {
 
         checkRateLimit(contestId, teamId);
 
-        String flag = resolveFlag(contestId, teamId, questionId, ext);
+        String flag = (overrideFlag != null && !overrideFlag.isBlank())
+                ? overrideFlag : resolveFlag(contestId, teamId, questionId, ext);
 
         ContainerConfig config = ContainerConfig.builder()
                 .contestId(contestId)
@@ -125,6 +139,15 @@ public class ContainerLifecycleService {
         record.setCreatedAt(LocalDateTime.now());
         record.setUpdatedAt(LocalDateTime.now());
 
+        // 销毁是软删除（仅置 DESTROYED），历史记录仍占用 uk_container_name。
+        // 重建同名容器前先清理，否则 reset / 销毁后再次启动会触发唯一键冲突。
+        // 注意：容器名在 flag 非空时会追加 flag 哈希后缀（见 ContainerConfig#containerName），
+        // 因此必须按实际写入的名字清理，不能用不带后缀的 buildContainerName。
+        containerMapper.delete(new LambdaQueryWrapper<ChallengeContainer>()
+                .eq(ChallengeContainer::getContainerName, record.getContainerName())
+                .in(ChallengeContainer::getStatus,
+                        ContainerStatus.DESTROYED.name(), ContainerStatus.ERROR.name()));
+
         containerMapper.insert(record);
         log.info("容器已创建并持久化: contest={} team={} q={} container={} simulated={}",
                 contestId, teamId, questionId, result.getContainerId(), result.isSimulated());
@@ -153,8 +176,17 @@ public class ContainerLifecycleService {
     public ChallengeContainer resetContainer(Long contestId, Long teamId, Long questionId,
                                               Long userId, String image, int exposedPort,
                                               QuestionExt ext, NetworkMode networkMode) {
+        return resetContainer(contestId, teamId, questionId, userId, image, exposedPort, ext, networkMode, null);
+    }
+
+    /** 重置容器并指定 flag（练习模式用）。 */
+    @Transactional
+    public ChallengeContainer resetContainer(Long contestId, Long teamId, Long questionId,
+                                              Long userId, String image, int exposedPort,
+                                              QuestionExt ext, NetworkMode networkMode,
+                                              String overrideFlag) {
         destroyContainer(contestId, teamId, questionId);
-        return createContainer(contestId, teamId, questionId, userId, image, exposedPort, ext, networkMode);
+        return createContainer(contestId, teamId, questionId, userId, image, exposedPort, ext, networkMode, overrideFlag);
     }
 
     /** 续期容器 TTL。 */
@@ -163,7 +195,9 @@ public class ContainerLifecycleService {
         ChallengeContainer container = findRunningContainer(contestId, teamId, questionId);
         if (container == null) throw BizException.notFound("运行中的容器");
 
-        LocalDateTime newStopAt = container.getExpectStopAt().plusMinutes(defaultTtlMinutes);
+        LocalDateTime base = container.getExpectStopAt() != null
+                ? container.getExpectStopAt() : LocalDateTime.now();
+        LocalDateTime newStopAt = base.plusMinutes(defaultTtlMinutes);
         container.setExpectStopAt(newStopAt);
         container.setUpdatedAt(LocalDateTime.now());
         containerMapper.updateById(container);

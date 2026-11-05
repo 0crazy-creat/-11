@@ -27,7 +27,8 @@ public class QuestionService {
     public PageResult<Question> page(QuestionQuery q) {
         LambdaQueryWrapper<Question> w = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(q.getBankType())) w.eq(Question::getBankType, q.getBankType());
-        if (StringUtils.hasText(q.getCategory())) w.eq(Question::getCategory, q.getCategory());
+        // 题库里存在 WEB/Web、PWN/Pwn 等历史混用，按小写比对避免筛选漏题
+        if (StringUtils.hasText(q.getCategory())) w.apply("LOWER(category) = LOWER({0})", q.getCategory());
         if (StringUtils.hasText(q.getDifficulty())) w.eq(Question::getDifficulty, q.getDifficulty());
         if (q.getStatus() != null) w.eq(Question::getStatus, q.getStatus());
         if (StringUtils.hasText(q.getKeyword())) {

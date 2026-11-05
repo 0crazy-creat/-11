@@ -64,10 +64,13 @@ public class QuestionExt {
     private String imageName;
 
     /** 容器内暴露端口 */
-    private Integer exposePort = 80;
+    private Integer exposePort;
 
     /** 容器内端口（兼容旧字段 containerPort） */
     private Integer containerPort;
+
+    /** 容器内端口（兼容更早的旧字段 port，老题库只写这个字段） */
+    private Integer port;
 
     /** CPU 限制（核数，如 0.5 表示半核） */
     private Double cpuLimit = 1.0;
@@ -202,8 +205,11 @@ public class QuestionExt {
         return containerImage != null && !containerImage.isBlank() ? containerImage : imageName;
     }
 
-    /** 获取有效的容器端口（exposePort 优先于 containerPort）。 */
+    /** 获取有效的容器端口（exposePort > containerPort > port，均未配置时按 80）。 */
     public int getEffectivePort() {
-        return exposePort != null ? exposePort : (containerPort != null ? containerPort : 80);
+        if (exposePort != null) return exposePort;
+        if (containerPort != null) return containerPort;
+        if (port != null) return port;
+        return 80;
     }
 }

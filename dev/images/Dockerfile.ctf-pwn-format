@@ -1,0 +1,9 @@
+# 题库中 900018「格式化字符串」引用 ctf/pwn-format，复用已有的 csp/pwn-fmt（监听 9999）
+FROM csp/pwn-fmt:latest
+
+COPY entrypoint-flag.sh /usr/local/bin/entrypoint-flag.sh
+RUN chmod +x /usr/local/bin/entrypoint-flag.sh
+
+EXPOSE 9999
+ENTRYPOINT ["/usr/local/bin/entrypoint-flag.sh"]
+CMD ["/run.sh"]

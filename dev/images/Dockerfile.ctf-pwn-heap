@@ -1,0 +1,18 @@
+# 堆溢出/Use-After-Free 靶场（题库 900019 引用 ctf/pwn-heap，端口 9999）
+FROM alpine:3.20 AS build
+RUN apk add --no-cache gcc musl-dev
+WORKDIR /src
+COPY pwn/heap.c /src/heap.c
+RUN gcc -O0 -fno-stack-protector -no-pie -w -o /src/heap /src/heap.c
+
+FROM alpine:3.20
+RUN apk add --no-cache socat
+
+COPY --from=build /src/heap /pwn/heap
+COPY pwn/heap-run.sh /run.sh
+COPY entrypoint-flag.sh /usr/local/bin/entrypoint-flag.sh
+RUN chmod +x /run.sh /usr/local/bin/entrypoint-flag.sh
+
+EXPOSE 9999
+ENTRYPOINT ["/usr/local/bin/entrypoint-flag.sh"]
+CMD ["/run.sh"]

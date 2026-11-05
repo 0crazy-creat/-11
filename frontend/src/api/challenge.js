@@ -38,13 +38,21 @@ export function submitPracticeFlag(challengeId, flag) {
 }
 
 /**
- * 容器相关接口：练习题不直接持有容器，容器维度是「赛事 + 战队 + 题目」
- * 真实端点在 CTF 靶机：/api/ctf/contests/{contestId}/targets/{start|reset|destroy}
- * 因此这里不再提供 /ctf/challenges/{id}/container/* 死路径。
- *
- * 若后续需要在练习页启动容器，请使用 api/index.js 中的：
- *   - getTargetStatus(contestId, questionId)
- *   - startTarget(contestId, questionId)
- *   - resetTarget(contestId, questionId)
- *   - destroyTarget(contestId, questionId)
+ * 练习容器接口（无赛事上下文，后端 PracticeController）
+ * 后端：/api/practice/challenges/{id}/container*（需登录）
  */
+export function getPracticeContainer(id) {
+  return request({ url: `/practice/challenges/${id}/container`, method: 'get' })
+}
+export function startPracticeContainer(id) {
+  return request({ url: `/practice/challenges/${id}/container/start`, method: 'post' })
+}
+export function resetPracticeContainer(id) {
+  return request({ url: `/practice/challenges/${id}/container/reset`, method: 'post' })
+}
+export function destroyPracticeContainer(id) {
+  return request({ url: `/practice/challenges/${id}/container/destroy`, method: 'post' })
+}
+export function extendPracticeContainer(id) {
+  return request({ url: `/practice/challenges/${id}/container/extend`, method: 'post' })
+}

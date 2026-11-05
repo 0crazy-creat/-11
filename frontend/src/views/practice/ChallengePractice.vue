@@ -28,7 +28,7 @@
           <el-card class="challenge-item" :body-style="{ padding: '0px' }" shadow="hover">
             <div class="challenge-header" :class="`difficulty-${challenge.difficulty?.toLowerCase()}`">
               <div class="challenge-title">{{ challenge.title }}</div>
-              <el-tag size="small" :type="categoryTagType(challenge.category)">{{ challenge.category }}</el-tag>
+              <el-tag size="small" :type="categoryTagType(challenge.category)">{{ normCategory(challenge.category) }}</el-tag>
             </div>
             <div class="challenge-body">
               <div class="challenge-info">
@@ -67,16 +67,49 @@
     </el-card>
 
     <!-- 答题对话框 -->
-    <el-dialog v-model="dialogVisible" :title="currentChallenge?.title" width="800px" destroy-on-close>
+    <el-dialog v-model="dialogVisible" :title="currentChallenge?.title" width="800px" destroy-on-close @close="onChallengeDialogClose">
       <div v-if="currentChallenge" class="challenge-detail">
         <el-descriptions :column="2" border>
-          <el-descriptions-item label="分类">{{ currentChallenge.category }}</el-descriptions-item>
+          <el-descriptions-item label="分类">{{ normCategory(currentChallenge.category) }}</el-descriptions-item>
           <el-descriptions-item label="难度">{{ difficultyLabel(currentChallenge.difficulty) }}</el-descriptions-item>
           <el-descriptions-item label="分值">{{ currentChallenge.score }}</el-descriptions-item>
           <el-descriptions-item label="解出数">{{ currentChallenge.solvedCount || 0 }}</el-descriptions-item>
         </el-descriptions>
         <div class="content" v-html="renderMarkdown(currentChallenge.content)"></div>
-        <div v-if="currentChallenge.attachment" class="attachment">
+
+        <!-- 容器题：启动靶机面板 -->
+        <div v-if="currentIsContainer" class="container-panel">
+          <div class="cp-head">
+            <el-icon><Monitor /></el-icon>
+            <span class="cp-title">动态靶机</span>
+            <el-tag size="small" effect="plain" type="info">{{ extInfo.challengeType || 'STATIC_CONTAINER' }}</el-tag>
+          </div>
+          <template v-if="container && (container.accessUrl || container.status === 'RUNNING')">
+            <div class="cp-url">
+              <a v-if="container.accessUrl" :href="container.accessUrl" target="_blank" rel="noopener">{{ container.accessUrl }}</a>
+              <span v-else>容器启动中，请稍后刷新…</span>
+              <el-tag size="small" :type="container.simulated ? 'warning' : 'success'" effect="plain">
+                {{ container.simulated ? '模拟容器（镜像未就绪）' : '运行中' }} · 端口 {{ container.port }}
+              </el-tag>
+            </div>
+            <div class="cp-countdown" v-if="containerHasExpiry">
+              <el-icon><Timer /></el-icon>
+              <span v-if="containerRemainSec > 0">剩余 <b :class="{ urgent: containerRemainSec < 600 }">{{ containerCountdown }}</b></span>
+              <span v-else class="expired">容器已到期，请重置</span>
+            </div>
+            <div class="cp-actions">
+              <el-button size="small" :loading="containerBusy" @click="doResetContainer">重置靶机</el-button>
+              <el-button size="small" type="primary" plain :loading="containerBusy" @click="doExtendContainer">续期</el-button>
+              <el-button size="small" type="danger" plain :loading="containerBusy" @click="doDestroyContainer">销毁</el-button>
+            </div>
+          </template>
+          <template v-else>
+            <div class="cp-hint">点击下方按钮拉起专属容器，端口由平台随机分配</div>
+            <el-button type="primary" size="small" :loading="containerBusy" @click="doStartContainer">启动容器</el-button>
+          </template>
+        </div>
+
+        <div v-else-if="currentChallenge.attachment" class="attachment">
           <el-button type="primary" link @click="downloadAttachment(currentChallenge.attachment)">
             <el-icon><Download /></el-icon> 下载附件
           </el-button>
@@ -103,12 +136,20 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Search, User, Download } from '@element-plus/icons-vue'
-import { getChallenges, submitPracticeFlag } from '@/api/challenge'
+import { Search, User, Download, Monitor, Timer } from '@element-plus/icons-vue'
+import {
+  getChallenges,
+  submitPracticeFlag,
+  getPracticeContainer,
+  startPracticeContainer,
+  resetPracticeContainer,
+  destroyPracticeContainer,
+  extendPracticeContainer
+} from '@/api/challenge'
 
-const categories = ['Web', 'Misc', 'Crypto', 'Reverse', 'Pwn', 'Theory', 'Scenario']
+const categories = ['Web', 'Misc', 'Crypto', 'Reverse', 'Pwn', 'Blockchain', 'Theory', 'Scenario']
 const challenges = ref([])
 const loading = ref(false)
 const page = ref(1)
@@ -129,10 +170,85 @@ const submitting = ref(false)
 const writeupDialogVisible = ref(false)
 const currentWriteup = ref('')
 
+// ===== 容器（练习靶机）状态 =====
+const container = ref(null)
+const containerBusy = ref(false)
+const containerRemainSec = ref(0)
+let containerTimer = null
+let containerExpireAtLocal = 0
+
+const extInfo = computed(() => {
+  const raw = currentChallenge.value?.ext
+  if (!raw) return {}
+  if (typeof raw === 'object') return raw
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return {}
+  }
+})
+
+const currentIsContainer = computed(() => {
+  const ext = extInfo.value
+  if (!ext) return false
+  const type = ext.challengeType
+  if (type === 'STATIC_CONTAINER' || type === 'DYNAMIC_CONTAINER') return true
+  if (ext.isDocker === true) return true
+  return !!(ext.imageName || ext.containerImage)
+})
+
+const containerCountdown = computed(() => {
+  const s = Math.max(0, containerRemainSec.value)
+  const h = String(Math.floor(s / 3600)).padStart(2, '0')
+  const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0')
+  const sec = String(s % 60).padStart(2, '0')
+  return `${h}:${m}:${sec}`
+})
+
+const containerHasExpiry = computed(() => !!parseServerTime(container.value?.expectStopAt))
+
+// 后端 Jackson 输出 "yyyy-MM-dd HH:mm:ss"，需转成可被各浏览器解析的本地时间
+function parseServerTime(value) {
+  if (!value) return null
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value
+  const d = new Date(String(value).trim().replace(' ', 'T'))
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+function isLoggedIn() {
+  return !!localStorage.getItem('csp_token')
+}
+
+// 分类大小写 / 中英文别名归并：WEB、web、Web 统一显示为 Web
+const CATEGORY_ALIASES = {
+  web: 'Web', 'web安全': 'Web',
+  misc: 'Misc', '杂项': 'Misc',
+  crypto: 'Crypto', '密码学': 'Crypto',
+  reverse: 'Reverse', '逆向': 'Reverse',
+  pwn: 'Pwn',
+  blockchain: 'Blockchain', '区块链': 'Blockchain',
+  theory: 'Theory', '理论': 'Theory',
+  scenario: 'Scenario', '场景': 'Scenario',
+  forensics: 'Forensics', '取证': 'Forensics'
+}
+
+function normCategory(category) {
+  const raw = (category == null ? '' : String(category)).trim()
+  if (!raw) return '其他'
+  const alias = CATEGORY_ALIASES[raw.toLowerCase()]
+  if (alias) return alias
+  return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase()
+}
+
 let searchTimer = null
 
 onMounted(() => {
   loadChallenges()
+})
+
+onBeforeUnmount(() => {
+  stopContainerTimer()
+  clearTimeout(searchTimer)
 })
 
 async function loadChallenges() {
@@ -145,10 +261,8 @@ async function loadChallenges() {
       difficulty: filter.difficulty,
       keyword: filter.keyword
     })
-    console.log('API response:', res)
     challenges.value = res?.records || res || []
     total.value = res?.total || 0
-    console.log('Challenges loaded:', challenges.value.length)
   } catch (error) {
     console.error('Load challenges error:', error)
     ElMessage.error('加载题目失败: ' + (error.message || '未知错误'))
@@ -175,7 +289,7 @@ function categoryTagType(category) {
     Theory: '',
     Scenario: 'warning'
   }
-  return map[category] || ''
+  return map[normCategory(category)] || ''
 }
 
 function difficultyLabel(difficulty) {
@@ -200,7 +314,125 @@ function parseTags(tags) {
 function openChallenge(challenge) {
   currentChallenge.value = challenge
   flagInput.value = ''
+  container.value = null
+  containerRemainSec.value = 0
+  stopContainerTimer()
   dialogVisible.value = true
+  loadContainer()
+}
+
+function onChallengeDialogClose() {
+  stopContainerTimer()
+  container.value = null
+  containerRemainSec.value = 0
+}
+
+// ===== 练习容器交互 =====
+
+async function loadContainer() {
+  stopContainerTimer()
+  const id = currentChallenge.value?.id
+  // 列表接口公开，容器接口需登录：未登录时静默跳过，避免被 401 强制跳转登录页
+  if (!id || !currentIsContainer.value || !isLoggedIn()) {
+    container.value = null
+    containerRemainSec.value = 0
+    return
+  }
+  try {
+    const data = await getPracticeContainer(id)
+    container.value = data || null
+  } catch (e) {
+    container.value = null
+  }
+  if (container.value?.accessUrl && container.value?.expectStopAt) {
+    startContainerTimer()
+  } else {
+    containerRemainSec.value = 0
+  }
+}
+
+function syncRemainSec() {
+  containerRemainSec.value = containerExpireAtLocal > 0
+    ? Math.max(0, Math.floor((containerExpireAtLocal - Date.now()) / 1000)) : 0
+}
+
+function startContainerTimer() {
+  stopContainerTimer()
+  const c = container.value
+  const end = parseServerTime(c?.expectStopAt)
+  const serverNow = parseServerTime(c?.checkedAt)
+  if (!end) {
+    containerRemainSec.value = 0
+    return
+  }
+  // 后端 LocalDateTime 不带时区（容器 JVM 为 UTC），直接用浏览器本地时间解析会差 8 小时。
+  // 用服务端自身的 expectStopAt - checkedAt 求剩余时长，再挂到本地单调时钟上递减。
+  const remainSec = serverNow
+    ? Math.max(0, Math.floor((end.getTime() - serverNow.getTime()) / 1000))
+    : Math.max(0, Math.floor((end.getTime() - Date.now()) / 1000))
+  containerExpireAtLocal = Date.now() + remainSec * 1000
+  syncRemainSec()
+  containerTimer = setInterval(syncRemainSec, 1000)
+}
+
+function stopContainerTimer() {
+  if (containerTimer !== null) {
+    clearInterval(containerTimer)
+    containerTimer = null
+  }
+  containerExpireAtLocal = 0
+}
+
+async function runContainerAction(api, successMsg) {
+  const id = currentChallenge.value?.id
+  if (!id) return
+  if (!isLoggedIn()) {
+    ElMessage.warning('请先登录后再操作靶机')
+    return
+  }
+  containerBusy.value = true
+  try {
+    await api(id)
+    ElMessage.success(successMsg)
+    await loadContainer()
+  } catch (e) {
+    // 请求拦截器已统一提示（含镜像缺失 409、未登录 401 等）
+  } finally {
+    containerBusy.value = false
+  }
+}
+
+async function doStartContainer() {
+  await runContainerAction(startPracticeContainer, '靶机已启动')
+}
+
+async function doResetContainer() {
+  await runContainerAction(resetPracticeContainer, '靶机已重置')
+}
+
+async function doExtendContainer() {
+  await runContainerAction(extendPracticeContainer, '靶机已续期')
+}
+
+async function doDestroyContainer() {
+  const id = currentChallenge.value?.id
+  if (!id) return
+  if (!isLoggedIn()) {
+    ElMessage.warning('请先登录后再操作靶机')
+    return
+  }
+  containerBusy.value = true
+  try {
+    await destroyPracticeContainer(id)
+    container.value = null
+    containerRemainSec.value = 0
+    stopContainerTimer()
+    ElMessage.success('靶机已销毁')
+  } catch (e) {
+    // 请求拦截器已统一提示
+  } finally {
+    containerBusy.value = false
+  }
 }
 
 async function submitFlag() {
@@ -230,13 +462,68 @@ function showWriteup(challenge) {
   writeupDialogVisible.value = true
 }
 
+function escapeHtml(text) {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+// 轻量 Markdown 渲染：先转义 HTML 再解析，避免题面注入脚本
 function renderMarkdown(content) {
   if (!content) return ''
-  // 简单的 Markdown 渲染（实际项目应使用 markdown-it 等库）
-  return content
-    .replace(/\n/g, '<br>')
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/`(.*?)`/g, '<code>$1</code>')
+  const codeBlocks = []
+  let src = String(content).replace(/\r\n/g, '\n')
+
+  // 围栏代码块先抽离，避免后续规则破坏其内容
+  src = src.replace(/```[^\n]*\n([\s\S]*?)```/g, (_, code) => {
+    const index = codeBlocks.push(`<pre class="md-code"><code>${escapeHtml(code)}</code></pre>`) - 1
+    return `\u0000CODE${index}\u0000`
+  })
+
+  src = escapeHtml(src)
+
+  src = src
+    .replace(/^######\s+(.+)$/gm, '<h6>$1</h6>')
+    .replace(/^#####\s+(.+)$/gm, '<h5>$1</h5>')
+    .replace(/^####\s+(.+)$/gm, '<h4>$1</h4>')
+    .replace(/^###\s+(.+)$/gm, '<h3>$1</h3>')
+    .replace(/^##\s+(.+)$/gm, '<h2>$1</h2>')
+    .replace(/^#\s+(.+)$/gm, '<h1>$1</h1>')
+    .replace(/^[ \t]*(?:---|\*\*\*)[ \t]*$/gm, '<hr>')
+    .replace(/^&gt;\s?(.+)$/gm, '<blockquote>$1</blockquote>')
+
+  src = src.replace(/(?:^|\n)((?:[-*+]\s+[^\n]*(?:\n|$))+)/g, (_, block) => {
+    const items = block.trim().split('\n')
+      .map(line => `<li>${line.replace(/^[-*+]\s+/, '')}</li>`)
+      .join('')
+    return `\n<ul>${items}</ul>`
+  })
+
+  src = src.replace(/(?:^|\n)((?:\d+\.\s+[^\n]*(?:\n|$))+)/g, (_, block) => {
+    const items = block.trim().split('\n')
+      .map(line => `<li>${line.replace(/^\d+\.\s+/, '')}</li>`)
+      .join('')
+    return `\n<ol>${items}</ol>`
+  })
+
+  src = src
+    .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+
+  src = src.split(/\n{2,}/).map(block => {
+    const trimmed = block.trim()
+    if (!trimmed) return ''
+    // 代码块占位符不能包进 <p>，否则 <pre> 嵌在段落里会导致排版异常
+    if (/^\u0000CODE\d+\u0000$/.test(trimmed)) return trimmed
+    if (/^<(h\d|ul|ol|pre|blockquote|hr)/.test(trimmed)) return trimmed
+    return `<p>${trimmed.replace(/\n/g, '<br>')}</p>`
+  }).filter(Boolean).join('\n')
+
+  return src.replace(/\u0000CODE(\d+)\u0000/g, (_, i) => codeBlocks[Number(i)])
 }
 
 function downloadAttachment(url) {
@@ -362,8 +649,146 @@ function downloadAttachment(url) {
   line-height: 1.8;
 }
 
+/* v-html 渲染出的 Markdown 内容需要 :deep 才能命中 */
+.challenge-detail .content :deep(p) {
+  margin: 10px 0;
+}
+
+.challenge-detail .content :deep(h1),
+.challenge-detail .content :deep(h2),
+.challenge-detail .content :deep(h3),
+.challenge-detail .content :deep(h4),
+.challenge-detail .content :deep(h5),
+.challenge-detail .content :deep(h6) {
+  margin: 18px 0 10px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.challenge-detail .content :deep(h1) { font-size: 22px; }
+.challenge-detail .content :deep(h2) { font-size: 19px; }
+.challenge-detail .content :deep(h3) { font-size: 17px; }
+.challenge-detail .content :deep(h4) { font-size: 15px; }
+
+.challenge-detail .content :deep(ul),
+.challenge-detail .content :deep(ol) {
+  margin: 10px 0;
+  padding-left: 24px;
+}
+
+.challenge-detail .content :deep(blockquote) {
+  margin: 12px 0;
+  padding: 8px 14px;
+  border-left: 3px solid var(--el-border-color);
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-secondary);
+}
+
+.challenge-detail .content :deep(code) {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--el-fill-color-light);
+  font-family: Consolas, Monaco, monospace;
+  font-size: 12px;
+}
+
+.challenge-detail .content :deep(pre.md-code) {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  background: #f7f8fa;
+  overflow-x: auto;
+}
+
+.challenge-detail .content :deep(pre.md-code code) {
+  padding: 0;
+  background: none;
+}
+
+.challenge-detail .content :deep(hr) {
+  margin: 18px 0;
+  border: none;
+  border-top: 1px solid var(--el-border-color-lighter);
+}
+
+.challenge-detail .content :deep(a) {
+  color: var(--el-color-primary);
+}
+
 .challenge-detail .attachment {
   margin-top: 16px;
+}
+
+/* 动态靶机面板 */
+.container-panel {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  background: var(--el-fill-color-blank);
+}
+
+.cp-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.cp-title {
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.cp-url {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.cp-url a {
+  color: var(--el-color-primary);
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.cp-url a:hover {
+  text-decoration: underline;
+}
+
+.cp-countdown {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+}
+
+.cp-countdown b {
+  font-variant-numeric: tabular-nums;
+  color: var(--el-text-color-primary);
+}
+
+.cp-countdown b.urgent,
+.cp-countdown .expired {
+  color: var(--el-color-danger);
+}
+
+.cp-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cp-hint {
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
 }
 
 .writeup-content {

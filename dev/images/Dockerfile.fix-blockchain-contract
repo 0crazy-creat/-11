@@ -1,0 +1,9 @@
+# 修复 csp/blockchain-contract：镜像内无 /flag.txt，补 flag 注入层
+FROM csp/blockchain-contract:orig
+
+COPY entrypoint-flag.sh /usr/local/bin/entrypoint-flag.sh
+RUN chmod +x /usr/local/bin/entrypoint-flag.sh
+
+EXPOSE 8545
+ENTRYPOINT ["/usr/local/bin/entrypoint-flag.sh"]
+CMD ["docker-entrypoint.sh", "node", "server.js"]
