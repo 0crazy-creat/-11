@@ -13,6 +13,7 @@
         <el-menu-item v-if="can('contest:archive')" index="/console/archives"><el-icon><FolderChecked /></el-icon><span>备案归档</span></el-menu-item>
         <el-menu-item v-if="can('contest:view')" index="/console/statistics"><el-icon><DataLine /></el-icon><span>统计报表</span></el-menu-item>
         <el-menu-item v-if="can('contest:view')" index="/console/lvp"><el-icon><Monitor /></el-icon><span>LVP 虚拟机</span></el-menu-item>
+        <el-menu-item v-if="can('contest:view')" index="/console/mqtt"><el-icon><Connection /></el-icon><span>MQTT 消息总线</span></el-menu-item>
         <el-menu-item v-if="can('audit:view')" index="/console/audit"><el-icon><Document /></el-icon><span>审计日志</span></el-menu-item>
       </el-menu>
       <div class="aside-foot">
@@ -43,7 +44,7 @@
 <script setup>
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Avatar, Back, Bell, DataLine, Document, Flag, FolderChecked, Grid, Monitor, Odometer, Trophy, User } from '@element-plus/icons-vue'
+import { Avatar, Back, Bell, Connection, DataLine, Document, Flag, FolderChecked, Grid, Monitor, Odometer, Trophy, User } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 
 const user = useUserStore()

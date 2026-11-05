@@ -414,6 +414,18 @@ export const lvpApi = {
   summary: () => request.get('/lvp/vms/summary')
 }
 
+// ===== MQTT 消息总线（MqttController：/api/mqtt）=====
+// 注意：后端未配置 broker 时使用本地内存总线，重启即清空
+export const mqttApi = {
+  status: () => request.get('/mqtt/status'),
+  messages: (topic, limit = 20) => request.get('/mqtt/messages', { params: { topic, limit } }),
+  publish: (topic, payload, qos = 0) =>
+    request.post('/mqtt/publish', payload ?? '', {
+      params: { topic, qos },
+      headers: { 'Content-Type': 'text/plain' }
+    })
+}
+
 // ===== AWD 轮次控制（AwdRoundControlController）=====
 export const awdRoundApi = {
   begin: (contestId, roundNo) => request.post(`/awd/rounds/${contestId}/${roundNo}/begin`),
