@@ -124,6 +124,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { CircleCheckFilled, Monitor, VideoPlay, Paperclip, Timer } from '@element-plus/icons-vue'
 import request from '@/utils/request'
+import { renderMarkdown } from '@/utils/markdown'
 import EnrollDialog from '@/components/contest/EnrollDialog.vue'
 
 const route = useRoute()
@@ -156,9 +157,8 @@ const canEnroll = computed(() => ['SIGNUP', 'RUNNING', 'PENDING'].includes(conte
 function statusText(s) {
   return { DRAFT: '筹备中', PENDING: '未开始', SIGNUP: '报名中', RUNNING: '进行中', FINISHED: '已结束', ARCHIVED: '已归档' }[s] || s || '—'
 }
-function render(md) {
-  return String(md).replace(/[<>&]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[m])).replace(/\n/g, '<br/>')
-}
+/** 题面统一以 Markdown 存储，交给通用渲染器解析（内部已做 HTML 转义防注入）。 */
+const render = (md) => renderMarkdown(md)
 
 async function load() {
   errMsg.value = ''
