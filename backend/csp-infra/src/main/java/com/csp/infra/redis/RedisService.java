@@ -53,6 +53,9 @@ public class RedisService {
 
     public Boolean hasKey(String key) { return redisTemplate.hasKey(key); }
 
+    /** 按模式匹配 key（数据量小的大屏/统计场景使用，勿用于海量 key 库）。 */
+    public Set<String> keys(String pattern) { return redisTemplate.keys(pattern); }
+
     public Boolean expire(String key, Duration ttl) { return redisTemplate.expire(key, ttl); }
 
     // ---------- 计数 ----------
@@ -119,4 +122,6 @@ public class RedisService {
     public Long lPush(String key, Object value) { return redisTemplate.opsForList().leftPush(key, value); }
 
     public List<Object> lRange(String key, long start, long end) { return redisTemplate.opsForList().range(key, start, end); }
+
+    public void lTrim(String key, long start, long end) { redisTemplate.opsForList().trim(key, start, end); }
 }

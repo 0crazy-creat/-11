@@ -122,6 +122,7 @@ export const listAwdTeams = (contestId) => request.get(`/awd/contests/${contestI
 export const getAwdScoreboard = (contestId) => request.get(`/awd/contests/${contestId}/scoreboard`)
 export const getAwdRounds = (contestId) => request.get(`/awd/contests/${contestId}/rounds`)
 export const getAwdAttackLog = (contestId, params) => request.get(`/awd/contests/${contestId}/attacks`, { params })
+export const getAwdHistory = (contestId, params) => request.get(`/awd/contests/${contestId}/history`, { params })
 export const getTargets = (contestId) => request.get(`/awd/contests/${contestId}/targets`)
 
 export const awdApi = {
@@ -131,6 +132,7 @@ export const awdApi = {
   getTargets,
   getRounds: getAwdRounds,
   getAttacks: getAwdAttackLog,
+  history: getAwdHistory,
   listTeams: listAwdTeams,
   scoreLeaderboard: (params) => request.get('/awd/score/leaderboard', { params }),
   scoreTeam: (params) => request.get('/awd/score/team', { params }),
