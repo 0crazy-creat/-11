@@ -70,28 +70,57 @@ public class AwdTargetService {
     // ------------------------------------------------------------------ 编排
 
     /**
-     * 为整个竞赛的所有已就绪靶机做一次幂等编排：
-     * 已有 RUNNING 靶机保持不变，缺失或异常的重新拉起。
+     * 为整个竞赛编排靶机（幂等）：已 RUNNING 的保持不变，缺失的按「参赛战队 × 赛事题目」笛卡尔积补齐。
      *
-     * <p>战队列表来源：本模块不直接依赖赛事模块（避免循环依赖），
-     * 由调用方通过 {@link #provisionTeam} 显式传参；此方法用于开局时的“自愈式”巡检。</p>
+     * <p>数据来源通过 {@link JdbcTemplate} 直读 {@code contest_team} / {@code contest_question}，
+     * 不依赖赛事模块的 Service，避免 csp-awd → csp-ctf 的循环依赖。</p>
+     *
+     * <p>历史实现只遍历已有 awd_target 行做自愈，首次开赛（表为空）时恒返回 0，
+     * 导致前端「一键部署全部靶机」按钮点了没有任何效果。</p>
      */
     public int provisionForContest(Long contestId) {
-        List<AwdTarget> existing = targetMapper.selectList(new LambdaQueryWrapper<AwdTarget>()
-                .eq(AwdTarget::getContestId, contestId));
-        int healed = 0;
-        for (AwdTarget t : existing) {
-            if (TargetStatus.RUNNING.name().equals(t.getStatus())) continue;
-            try {
-                provisionOne(t.getContestId(), t.getTeamId(), t.getQuestionId(), null, null, null);
-                healed++;
-            } catch (Exception e) {
-                log.warn("靶机自愈失败 contest={} team={} q={}: {}",
-                        t.getContestId(), t.getTeamId(), t.getQuestionId(), e.getMessage());
+        List<Long> teamIds;
+        try {
+            teamIds = jdbcTemplate.queryForList(
+                    "SELECT id FROM contest_team WHERE contest_id = ? AND deleted = 0 AND status = 'APPROVED'",
+                    Long.class, contestId);
+        } catch (Exception e) {
+            log.warn("查询参赛战队失败 contest={}: {}", contestId, e.getMessage());
+            teamIds = List.of();
+        }
+
+        List<Long> questionIds;
+        try {
+            questionIds = jdbcTemplate.queryForList(
+                    "SELECT question_id FROM contest_question WHERE contest_id = ? AND deleted = 0",
+                    Long.class, contestId);
+        } catch (Exception e) {
+            log.warn("查询赛事题目失败 contest={}: {}", contestId, e.getMessage());
+            questionIds = List.of();
+        }
+
+        if (teamIds.isEmpty() || questionIds.isEmpty()) {
+            // 没有任何参赛战队或题目时无事可做，保持与旧行为一致返回 0
+            log.info("靶场编排跳过 contest={}：战队 {} 支，题目 {} 道",
+                    contestId, teamIds.size(), questionIds.size());
+            return 0;
+        }
+
+        int provisioned = 0;
+        for (Long teamId : teamIds) {
+            for (Long questionId : questionIds) {
+                try {
+                    provisionOne(contestId, teamId, questionId, null, null, null);
+                    provisioned++;
+                } catch (Exception e) {
+                    log.warn("靶机编排失败 contest={} team={} q={}: {}",
+                            contestId, teamId, questionId, e.getMessage());
+                }
             }
         }
-        log.info("靶场编排巡检完成 contest={} 修复 {} 台", contestId, healed);
-        return healed;
+        log.info("靶场编排完成 contest={} 战队 {} 支 × 题目 {} 道，成功 {} 台",
+                contestId, teamIds.size(), questionIds.size(), provisioned);
+        return provisioned;
     }
 
     /**
