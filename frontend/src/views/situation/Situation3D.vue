@@ -87,7 +87,7 @@ import { connectWs } from '@/utils/ws'
 const props = defineProps({ contestId: { type: [String, Number], default: null } })
 const router = useRouter()
 
-const contestId = ref(props.contestId ? Number(props.contestId) : null)
+const contestId = ref(props.contestId ? String(props.contestId) : null)
 const contests = ref([])
 const overview = ref({})
 const ranking = ref([])

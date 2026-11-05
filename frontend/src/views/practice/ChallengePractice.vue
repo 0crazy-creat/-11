@@ -106,7 +106,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Search, User, Download } from '@element-plus/icons-vue'
-import { getChallenges } from '@/api/challenge'
+import { getChallenges, submitPracticeFlag } from '@/api/challenge'
 
 const categories = ['Web', 'Misc', 'Crypto', 'Reverse', 'Pwn', 'Theory', 'Scenario']
 const challenges = ref([])
@@ -208,10 +208,21 @@ async function submitFlag() {
     ElMessage.warning('请输入 Flag')
     return
   }
-  // 练习模式无赛事上下文，后端 SubmitRequest 强制要求 contestId；
-  // 练习判题端点 /api/practice/challenges/{id}/submit 尚未实现。
-  // 这里给出明确引导，避免调用不存在的接口产生 404。
-  ElMessage.warning('练习模式暂不支持在线判题，请进入对应赛事答题区提交 Flag')
+  submitting.value = true
+  try {
+    const res = await submitPracticeFlag(currentChallenge.value.id, flagInput.value.trim())
+    if (res?.correct) {
+      ElMessage.success(`答案正确！本题 ${res.score || 0} 分`)
+      flagInput.value = ''
+      dialogVisible.value = false
+    } else {
+      ElMessage.error(res?.message || 'Flag 不正确，请重试')
+    }
+  } catch (e) {
+    ElMessage.error(e.message || '判题失败，请稍后重试')
+  } finally {
+    submitting.value = false
+  }
 }
 
 function showWriteup(challenge) {

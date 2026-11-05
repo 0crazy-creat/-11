@@ -324,7 +324,8 @@ async function doSubmit() {
   submitting.value = true
   feedback.value = null
   try {
-    const res = await submitFlag({ contestId: Number(props.contestId), questionId: current.value.id, content: flag.value.trim() })
+    // 雪花 ID 必须保持字符串，禁止 Number() 转换（19 位超出 MAX_SAFE_INTEGER）
+    const res = await submitFlag({ contestId: String(props.contestId), questionId: current.value.id, content: flag.value.trim() })
     const ok = res === true || res?.correct === true || res?.success === true || res?.data === true
     if (ok) {
       solvedIds.value = new Set([...solvedIds.value, current.value.id])

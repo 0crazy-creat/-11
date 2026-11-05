@@ -230,7 +230,7 @@ async function createTeam() {
   createLoading.value = true
   try {
     await request.post(`/ctf/contests/${contestId.value}/teams`, {
-      contestId: Number(contestId.value),
+      contestId: String(contestId.value),
       name: newTeamName.value.trim()
     })
     ElMessage.success('战队创建成功')

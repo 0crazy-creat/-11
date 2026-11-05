@@ -26,14 +26,14 @@ export function getChallengeDetail(id) {
 
 /**
  * 提交 Flag（练习模式）
- * 后端：CtfCompatController POST /api/ctf/submit，body = { questionId, flag }
- * 兼容层会把提交映射到 SubmissionService.submit()
+ * 后端：PracticeController POST /api/practice/challenges/{id}/submit，body = { flag }
+ * 只做 flag 比对，不写赛事提交表，不影响排行榜。
  */
-export function submitFlag(challengeId, flag) {
+export function submitPracticeFlag(challengeId, flag) {
   return request({
-    url: '/ctf/submit',
+    url: `/practice/challenges/${challengeId}/submit`,
     method: 'post',
-    data: { questionId: challengeId, flag }
+    data: { flag }
   })
 }
 

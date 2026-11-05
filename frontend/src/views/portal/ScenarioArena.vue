@@ -104,7 +104,8 @@ import {
 } from '@/api'
 
 const route = useRoute()
-const contestId = Number(route.params.contestId)
+// 雪花 ID 为 19 位，超出 Number.MAX_SAFE_INTEGER，必须保持字符串避免精度丢失
+const contestId = String(route.params.contestId)
 
 const loading = ref(false)
 const prechecking = ref(false)

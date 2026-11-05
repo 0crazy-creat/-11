@@ -269,7 +269,8 @@ import { useUserStore } from '@/store/user'
 
 const route = useRoute()
 const user = useUserStore()
-const contestId = computed(() => Number(route.params.contestId))
+// 雪花 ID 为 19 位，超出 Number.MAX_SAFE_INTEGER，必须保持字符串避免精度丢失
+const contestId = computed(() => String(route.params.contestId))
 const isAwdp = computed(() => String(contest.value.type || '').toUpperCase() === 'AWDP')
 
 const contest = ref({})

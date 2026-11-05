@@ -63,10 +63,10 @@ onMounted(() => {
 async function loadContests() {
   loading.value = true
   try {
-    const res = await getContests({ types: 'AWD,AWDP' })
-    console.log('AWD contests API response:', res)
-    contests.value = res?.records || res || []
-    console.log('AWD contests loaded:', contests.value.length)
+    // 后端 /api/contests 暂不支持 types 参数，必须前端二次过滤，否则会把 CTF 等赛制串台进来
+    const res = await getContests({ page: 1, size: 100 })
+    const all = res?.records || res || []
+    contests.value = all.filter(c => ['AWD', 'AWDP'].includes(String(c.type || '').toUpperCase()))
   } catch (error) {
     console.error('Load AWD contests error:', error)
     ElMessage.error('加载赛事失败: ' + (error.message || '未知错误'))
